@@ -12,6 +12,10 @@ Pinned devices sit in the taskbar next to the notification area, here a headset 
 
 ![Two pinned devices in the Windows 11 taskbar](assets/readme/taskbar.png)
 
+With "Show battery level as number in taskbar" turned off, only the symbols remain:
+
+![The same two devices as symbols only](assets/readme/taskbar-symbols.png)
+
 The screenshots show the German interface; on an English Windows the app is in English.
 
 ## Features
