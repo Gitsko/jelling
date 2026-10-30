@@ -18,12 +18,14 @@ public static class FlyoutPlacement
     // Windows 11 taskbar height at 100 % scale; only needed when the taskbar auto-hides
     private const int TaskbarHeightEpx = 48;
 
-    public static PixelRect Calculate(PixelRect workArea, PixelRect monitorBounds, int width, int height, double scale)
+    /// <param name="hasTaskbar">Whether a taskbar sits on this monitor; a secondary one may have none.</param>
+    public static PixelRect Calculate(
+        PixelRect workArea, PixelRect monitorBounds, bool hasTaskbar, int width, int height, double scale)
     {
         var margin = (int)Math.Round(MarginEpx * scale);
 
         // An auto-hiding taskbar reserves no work area, but still covers the bottom edge when shown
-        var bottom = workArea == monitorBounds
+        var bottom = hasTaskbar && workArea == monitorBounds
             ? workArea.Bottom - (int)Math.Round(TaskbarHeightEpx * scale)
             : workArea.Bottom;
 

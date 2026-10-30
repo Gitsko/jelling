@@ -5,7 +5,8 @@ namespace Jelling.Core;
 /// <summary>
 /// What the user set: per device whether it gets its own taskbar icon and its low threshold, and for all
 /// devices whether the taskbar shows the level as a number. Stored as JSON; a missing or unreadable file
-/// means nothing pinned, default thresholds and numbers shown.
+/// means nothing pinned, default thresholds and numbers shown; one that is no valid JSON is kept aside
+/// as settings.invalid.json rather than overwritten.
 /// </summary>
 public sealed class DeviceSettings
 {
@@ -63,10 +64,16 @@ public sealed class DeviceSettings
 
     private void Save()
     {
-        // Write aside and swap, so a crash mid-write cannot leave a truncated file that loses all settings
+        // Write aside, flush to disk and swap, so neither a crash nor a power loss mid-write can leave
+        // a truncated file that loses all settings
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
         var pending = _path + ".pending";
-        File.WriteAllText(pending, JsonSerializer.Serialize(new Stored([.. _pinned], _lowThresholds, ShowPercent)));
+        using (var stream = new FileStream(pending, FileMode.Create, FileAccess.Write))
+        {
+            JsonSerializer.Serialize(stream, new Stored([.. _pinned], _lowThresholds, ShowPercent));
+            stream.Flush(flushToDisk: true);
+        }
+
         File.Move(pending, _path, overwrite: true);
     }
 
@@ -76,8 +83,22 @@ public sealed class DeviceSettings
         {
             return JsonSerializer.Deserialize<Stored>(File.ReadAllText(path));
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
+            return null;
+        }
+        catch (JsonException)
+        {
+            // The next save would overwrite it; kept aside, a hand-edited file can still be repaired
+            try
+            {
+                File.Move(path, Path.ChangeExtension(path, ".invalid.json"), overwrite: true);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // Still read as defaults; only keeping the copy failed
+            }
+
             return null;
         }
     }

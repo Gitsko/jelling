@@ -380,7 +380,7 @@ public partial class App : Application
 
         try
         {
-            // The flyout already shows the choice; rebuilding its rows would close the list under the user
+            // The flyout rebuilds its rows itself once the list has closed; here they would close it under the user
             ShowInTaskbar();
 
             // A warning at the old threshold must not swallow the first one at the new threshold;

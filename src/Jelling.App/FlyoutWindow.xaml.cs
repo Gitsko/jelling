@@ -28,6 +28,7 @@ public sealed partial class FlyoutWindow : Window, IDisposable
 
     private DisplayArea? _displayArea;
     private double _scale = 1.0;
+    private bool _hasTaskbar = true;
     private long _hiddenAt;
     private bool _disposed;
 
@@ -140,7 +141,9 @@ public sealed partial class FlyoutWindow : Window, IDisposable
     {
         GetCursorPos(out var cursor);
         _displayArea = DisplayArea.GetFromPoint(new PointInt32(cursor.X, cursor.Y), DisplayAreaFallback.Nearest);
-        _scale = GetScale(cursor);
+        var monitor = MonitorFromPoint(cursor, MonitorDefaultToNearest);
+        _scale = GetScale(monitor);
+        _hasTaskbar = HasTaskbar(monitor);
 
         Place();
         AppWindow.Show();
@@ -165,6 +168,7 @@ public sealed partial class FlyoutWindow : Window, IDisposable
         var bounds = FlyoutPlacement.Calculate(
             ToPixelRect(_displayArea.WorkArea),
             ToPixelRect(_displayArea.OuterBounds),
+            _hasTaskbar,
             (int)Math.Round(WidthEpx * _scale),
             (int)Math.Ceiling(heightEpx * _scale),
             _scale);
@@ -189,7 +193,7 @@ public sealed partial class FlyoutWindow : Window, IDisposable
         if (((FrameworkElement)sender).DataContext is DeviceItem item)
         {
             PinToggled?.Invoke(this, item.Id);
-            FocusPinButton(item.Id);
+            FocusInRow<Button>(item.Id);
         }
     }
 
@@ -204,6 +208,17 @@ public sealed partial class FlyoutWindow : Window, IDisposable
         if (sender is ComboBox { DataContext: DeviceItem item, SelectedIndex: >= 0 and var index })
         {
             LowThresholdChanged?.Invoke(this, (item.Id, BatteryLevel.LowThresholds[index]));
+
+            // The row's low state follows the new threshold once rebuilt; queued so the list finishes
+            // its selection first, and still open it defers the rebuild until it closes
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                RowsOutdated?.Invoke(this, EventArgs.Empty);
+                if (!_rowsOutdated)
+                {
+                    FocusInRow<ComboBox>(item.Id);
+                }
+            });
         }
     }
 
@@ -225,15 +240,15 @@ public sealed partial class FlyoutWindow : Window, IDisposable
             .Any(container => container.ContentTemplateRoot is Panel row
                 && row.Children.OfType<ComboBox>().Any(list => list.IsDropDownOpen));
 
-    // The toggle rebuilt the rows and with them the focused button; keyboard users stay in place
-    private void FocusPinButton(Guid deviceId)
+    // A rebuild replaced the rows and with them the focused control; keyboard users stay in place
+    private void FocusInRow<T>(Guid deviceId) where T : Control
     {
         var index = DeviceList.Items.Cast<DeviceItem>().ToList().FindIndex(d => d.Id == deviceId);
         DeviceList.UpdateLayout();
         if (DeviceList.ContainerFromIndex(index) is ListViewItem { ContentTemplateRoot: Panel row }
-            && row.Children.OfType<Button>().FirstOrDefault() is { } button)
+            && row.Children.OfType<T>().FirstOrDefault() is { } control)
         {
-            button.Focus(FocusState.Programmatic);
+            control.Focus(FocusState.Programmatic);
         }
     }
 
@@ -265,10 +280,28 @@ public sealed partial class FlyoutWindow : Window, IDisposable
 
     private static PixelRect ToPixelRect(RectInt32 rect) => new(rect.X, rect.Y, rect.Width, rect.Height);
 
-    private static double GetScale(Point cursor)
+    private static double GetScale(IntPtr monitor) =>
+        GetDpiForMonitor(monitor, MdtEffectiveDpi, out var dpiX, out _) == 0 ? dpiX / 96.0 : 1.0;
+
+    // "Show taskbar on all displays" turned off leaves the other monitors without one
+    private static bool HasTaskbar(IntPtr monitor)
     {
-        var monitor = MonitorFromPoint(cursor, MonitorDefaultToNearest);
-        return GetDpiForMonitor(monitor, MdtEffectiveDpi, out var dpiX, out _) == 0 ? dpiX / 96.0 : 1.0;
+        if (MonitorFromWindow(FindWindow("Shell_TrayWnd", null), MonitorDefaultToNearest) == monitor)
+        {
+            return true;
+        }
+
+        for (var taskbar = FindWindowEx(IntPtr.Zero, IntPtr.Zero, "Shell_SecondaryTrayWnd", null);
+             taskbar != IntPtr.Zero;
+             taskbar = FindWindowEx(IntPtr.Zero, taskbar, "Shell_SecondaryTrayWnd", null))
+        {
+            if (MonitorFromWindow(taskbar, MonitorDefaultToNearest) == monitor)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private const uint MonitorDefaultToNearest = 2;
@@ -286,6 +319,15 @@ public sealed partial class FlyoutWindow : Window, IDisposable
 
     [DllImport("user32.dll")]
     private static extern IntPtr MonitorFromPoint(Point point, uint flags);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr window, uint flags);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr FindWindow(string className, string? windowName);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr FindWindowEx(IntPtr parent, IntPtr childAfter, string className, string? windowName);
 
     [DllImport("shcore.dll")]
     private static extern int GetDpiForMonitor(IntPtr monitor, int dpiType, out uint dpiX, out uint dpiY);

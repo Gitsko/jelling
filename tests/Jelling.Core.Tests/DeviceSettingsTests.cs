@@ -53,6 +53,18 @@ public sealed class DeviceSettingsTests : IDisposable
     }
 
     [Fact]
+    public void CorruptFileIsKeptAsideBeforeTheNextSave()
+    {
+        Directory.CreateDirectory(_folder);
+        File.WriteAllText(SettingsPath, "{ not json");
+
+        new DeviceSettings(SettingsPath).TogglePin(Headset);
+
+        Assert.Equal("{ not json", File.ReadAllText(Path.Combine(_folder, "settings.invalid.json")));
+        Assert.True(new DeviceSettings(SettingsPath).IsPinned(Headset));
+    }
+
+    [Fact]
     public void UnsetThresholdIsTheDefault()
     {
         Assert.Equal(BatteryLevel.DefaultLowThreshold, new DeviceSettings(SettingsPath).LowThreshold(Headset));
