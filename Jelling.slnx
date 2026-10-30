@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Jelling.App/Jelling.App.csproj" />
+    <Project Path="src/Jelling.Core/Jelling.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Jelling.Core.Tests/Jelling.Core.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="FlyoutHeader.Text" xml:space="preserve"><value>Jelling – Bluetooth-Geräte</value></data>
+  <data name="EmptyText.Text" xml:space="preserve"><value>Keine Bluetooth-Geräte gefunden</value></data>
+  <data name="Exit" xml:space="preserve"><value>Beenden</value></data>
+  <data name="AutoStart" xml:space="preserve"><value>Mit Windows starten</value></data>
+  <data name="ShowPercent" xml:space="preserve"><value>Akkustand als Zahl in der Taskleiste</value></data>
+  <data name="Pin" xml:space="preserve"><value>In der Taskleiste anzeigen</value></data>
+  <data name="Unpin" xml:space="preserve"><value>Aus der Taskleiste entfernen</value></data>
+  <data name="LowThresholdOff" xml:space="preserve"><value>Aus</value></data>
+  <data name="LowThreshold" xml:space="preserve"><value>Warnen bei</value></data>
+  <data name="LowThresholdToolTip" xml:space="preserve"><value>Bei diesem Akkustand oder weniger warnen</value></data>
+  <data name="PercentFormat" xml:space="preserve"><value>{0} %</value></data>
+  <data name="LowLevel" xml:space="preserve"><value>niedrig</value></data>
+  <data name="Connected" xml:space="preserve"><value>Verbunden</value></data>
+  <data name="Disconnected" xml:space="preserve"><value>Getrennt</value></data>
+  <data name="BatteryUnknown" xml:space="preserve"><value>Akkustand unbekannt</value></data>
+  <data name="LowThresholdHeader.Text" xml:space="preserve"><value>Warnen bei</value></data>
+  <data name="LowBatteryTitle" xml:space="preserve"><value>{0}: Akku schwach</value></data>
+  <data name="LowBatteryText" xml:space="preserve"><value>Noch {0} %. Bitte bald aufladen.</value></data>
+  <data name="CloseButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Schließen</value></data>
+  <data name="CloseButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Schließen</value></data>
+  <data name="GitHubLink.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Projektseite auf GitHub</value></data>
+  <data name="GitHubLink.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Projektseite auf GitHub</value></data>
+  <data name="UpdateAvailable" xml:space="preserve"><value>Update verfügbar: {0}</value></data>
+</root>

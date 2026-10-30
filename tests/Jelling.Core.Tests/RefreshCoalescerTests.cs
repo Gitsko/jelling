@@ -1,0 +1,97 @@
+namespace Jelling.Core.Tests;
+
+public class RefreshCoalescerTests
+{
+    // Each refresh waits for the test to release it, so requests can arrive mid-run
+    private sealed class ControlledRefresh
+    {
+        private readonly Queue<TaskCompletionSource> _pending = new();
+
+        public int Runs { get; private set; }
+
+        public Task Run()
+        {
+            Runs++;
+            var completion = new TaskCompletionSource();
+            _pending.Enqueue(completion);
+            return completion.Task;
+        }
+
+        public void CompleteNext() => _pending.Dequeue().SetResult();
+    }
+
+    [Fact]
+    public void RunsRefreshOnRequest()
+    {
+        var refresh = new ControlledRefresh();
+        var coalescer = new RefreshCoalescer(refresh.Run);
+
+        _ = coalescer.Request();
+
+        Assert.Equal(1, refresh.Runs);
+    }
+
+    [Fact]
+    public void RequestDuringRunTriggersOneTrailingRun()
+    {
+        var refresh = new ControlledRefresh();
+        var coalescer = new RefreshCoalescer(refresh.Run);
+
+        _ = coalescer.Request();
+        _ = coalescer.Request();
+        Assert.Equal(1, refresh.Runs);
+
+        refresh.CompleteNext();
+
+        Assert.Equal(2, refresh.Runs);
+    }
+
+    [Fact]
+    public void ManyRequestsDuringRunCollapseIntoOneTrailingRun()
+    {
+        var refresh = new ControlledRefresh();
+        var coalescer = new RefreshCoalescer(refresh.Run);
+
+        var first = coalescer.Request();
+        _ = coalescer.Request();
+        _ = coalescer.Request();
+        _ = coalescer.Request();
+        refresh.CompleteNext();
+        refresh.CompleteNext();
+
+        Assert.Equal(2, refresh.Runs);
+        Assert.True(first.IsCompletedSuccessfully);
+    }
+
+    [Fact]
+    public void RunsAgainAfterSynchronouslyCompletedRefresh()
+    {
+        var runs = 0;
+        var coalescer = new RefreshCoalescer(() =>
+        {
+            runs++;
+            return Task.CompletedTask;
+        });
+
+        _ = coalescer.Request();
+        _ = coalescer.Request();
+
+        Assert.Equal(2, runs);
+    }
+
+    [Fact]
+    public async Task FailedRefreshDoesNotBlockLaterRequests()
+    {
+        var runs = 0;
+        var coalescer = new RefreshCoalescer(() =>
+        {
+            runs++;
+            return runs == 1 ? Task.FromException(new InvalidOperationException()) : Task.CompletedTask;
+        });
+
+        await Assert.ThrowsAsync<InvalidOperationException>(coalescer.Request);
+        await coalescer.Request();
+
+        Assert.Equal(2, runs);
+    }
+}

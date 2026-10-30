@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    # Plain versions only: the app reads a three-part number and would show v1.2.3 for v1.2.3-rc1
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - name: Build
+        run: dotnet build Jelling.slnx -c Release
+      - name: Test
+        run: dotnet test Jelling.slnx -c Release --no-build
+
+  release:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - name: Publish self-contained ZIPs
+        shell: pwsh
+        run: |
+          $version = $env:TAG.TrimStart('v')
+          foreach ($platform in 'x64', 'ARM64') {
+            $rid = "win-$($platform.ToLower())"
+            # WinUI needs the platform as well as the runtime; -r alone falls back to x64
+            dotnet publish src/Jelling.App/Jelling.App.csproj -c Release -r $rid -p:Platform=$platform -p:Version=$version -o "publish/$rid"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            # No version in the name, so releases/latest/download/Jelling-win-x64.zip always points to the newest
+            Compress-Archive "publish/$rid/*" "Jelling-$rid.zip"
+          }
+      - name: Create release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # A re-run after a failed upload finds the release already there and only replaces the files
+          gh release view $env:TAG *> $null
+          if ($LASTEXITCODE) {
+            gh release create $env:TAG --generate-notes
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+          gh release upload $env:TAG (Get-ChildItem Jelling-*.zip) --clobber
