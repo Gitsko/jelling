@@ -23,6 +23,9 @@ jobs:
         run: dotnet build Jelling.slnx -c Release
       - name: Test
         run: dotnet test Jelling.slnx -c Release --no-build
+      # The release ships ARM64 too; a break there should show up before tagging
+      - name: Build ARM64
+        run: dotnet build src/Jelling.App/Jelling.App.csproj -c Release -r win-arm64 -p:Platform=ARM64
 
   release:
     needs: test
@@ -34,7 +37,10 @@ jobs:
     env:
       TAG: ${{ github.ref_name }}
     steps:
+      # The job has write access; gh uses GH_TOKEN, so the token need not stay in .git/config for the build
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
@@ -50,6 +56,9 @@ jobs:
             # No version in the name, so releases/latest/download/Jelling-win-x64.zip always points to the newest
             Compress-Archive "publish/$rid/*" "Jelling-$rid.zip"
           }
+          # sha256sum -c format with LF line ends, so the download can be checked on any system
+          $sums = Get-ChildItem Jelling-*.zip | ForEach-Object { "$((Get-FileHash $_ -Algorithm SHA256).Hash)  $($_.Name)`n" }
+          [IO.File]::WriteAllText("$($PWD.ProviderPath)/SHA256SUMS.txt", -join $sums)
       - name: Create release
         shell: pwsh
         env:
@@ -61,4 +70,4 @@ jobs:
             gh release create $env:TAG --generate-notes
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
           }
-          gh release upload $env:TAG (Get-ChildItem Jelling-*.zip) --clobber
+          gh release upload $env:TAG (Get-ChildItem Jelling-*.zip) SHA256SUMS.txt --clobber

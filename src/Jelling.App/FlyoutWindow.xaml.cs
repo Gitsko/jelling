@@ -207,6 +207,12 @@ public sealed partial class FlyoutWindow : Window, IDisposable
 
         if (sender is ComboBox { DataContext: DeviceItem item, SelectedIndex: >= 0 and var index })
         {
+            // A recycled row selects its new device's value, removing the old one; that is no choice either
+            if (index == item.LowThresholdIndex)
+            {
+                return;
+            }
+
             LowThresholdChanged?.Invoke(this, (item.Id, BatteryLevel.LowThresholds[index]));
 
             // The row's low state follows the new threshold once rebuilt; queued so the list finishes
@@ -230,6 +236,12 @@ public sealed partial class FlyoutWindow : Window, IDisposable
 
             // Not the skipped list itself: it predates the threshold just picked
             RowsOutdated?.Invoke(this, EventArgs.Empty);
+
+            // The rebuild replaced the list that had the focus
+            if (sender is FrameworkElement { DataContext: DeviceItem item })
+            {
+                FocusInRow<ComboBox>(item.Id);
+            }
         }
     }
 

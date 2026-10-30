@@ -355,6 +355,13 @@ public sealed class TaskbarElement : IDisposable
 
                 return IntPtr.Zero;
 
+            // DefWindowProc would turn a right click into WM_CONTEXTMENU and send it to the parent, Explorer's
+            // taskbar, across processes. Like the device tray icons, the element has no menu of its own
+            case WmRButtonDown:
+            case WmRButtonUp:
+            case WmContextMenu:
+                return IntPtr.Zero;
+
             // Explorer destroys the element along with the taskbar; the handle may then be reused
             case WmNcDestroy:
                 if (window == _window)
@@ -418,6 +425,9 @@ public sealed class TaskbarElement : IDisposable
     private const uint WmLButtonDown = 0x0201;
     private const uint WmLButtonUp = 0x0202;
     private const uint WmCaptureChanged = 0x0215;
+    private const uint WmRButtonDown = 0x0204;
+    private const uint WmRButtonUp = 0x0205;
+    private const uint WmContextMenu = 0x007B;
     private const int MaNoActivate = 3;
     private const uint GwChild = 5;
     private const uint SwpNoSize = 0x0001;

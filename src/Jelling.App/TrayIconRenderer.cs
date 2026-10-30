@@ -40,10 +40,9 @@ public static class TrayIconRenderer
     /// </summary>
     /// <param name="percent">Null draws only the glyph.</param>
     /// <param name="levelColor">For the digits, so a low level can stand out from the glyph.</param>
-    public static Icon RenderDevice(string glyph, int? percent, Color color, Color levelColor)
-    {
-        var size = SmallIconSize();
-        return ToIcon(size, graphics =>
+    /// <param name="size">From <see cref="SmallIconSize"/>.</param>
+    public static Icon RenderDevice(string glyph, int? percent, Color color, Color levelColor, int size) =>
+        ToIcon(size, graphics =>
         {
             using var glyphBrush = new SolidBrush(color);
             if (percent is not { } level)
@@ -63,7 +62,6 @@ public static class TrayIconRenderer
             graphics.FillPath(glyphBrush, Place(symbol, size, glyphHeight, top: 0));
             graphics.FillPath(digitBrush, Place(digits, size, digitHeight, top: size - digitHeight));
         });
-    }
 
     private static RectangleF Ring(float width)
     {
@@ -119,8 +117,16 @@ public static class TrayIconRenderer
         return path;
     }
 
-    // The size Explorer shows tray icons at; a larger image is scaled down and its digits blur
-    private static int SmallIconSize() => GetSystemMetricsForDpi(SmCxSmIcon, GetDpiForSystem());
+    /// <summary>
+    /// The size Explorer shows tray icons at; a larger image is scaled down and its digits blur. It follows the
+    /// taskbar's DPI, which the system DPI misses after a scale change without signing out.
+    /// </summary>
+    public static int SmallIconSize()
+    {
+        var taskbar = FindWindow("Shell_TrayWnd", null);
+        var dpi = taskbar == IntPtr.Zero ? 0 : GetDpiForWindow(taskbar);
+        return GetSystemMetricsForDpi(SmCxSmIcon, dpi != 0 ? dpi : GetDpiForSystem());
+    }
 
     private static Icon ToIcon(int size, Action<Graphics> paint)
     {
@@ -149,6 +155,12 @@ public static class TrayIconRenderer
 
     [DllImport("user32.dll")]
     private static extern uint GetDpiForSystem();
+
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr window);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr FindWindow(string className, string? windowName);
 
     [DllImport("user32.dll")]
     private static extern int GetSystemMetricsForDpi(int index, uint dpi);

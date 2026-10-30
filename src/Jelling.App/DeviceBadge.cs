@@ -26,21 +26,16 @@ public sealed record DeviceBadge(Guid Id, string Glyph, int? Percent, Color Glyp
         var glyph = DeviceItem.GlyphFor(device.Kind);
         if (device.BatteryPercent is not { } percent)
         {
-            return new DeviceBadge(device.Id, glyph, null, colors.Normal, colors.Normal, device.Name);
+            return new DeviceBadge(device.Id, glyph, null, colors.Normal, colors.Normal, BadgeContent.ToolTip(device.Name, null));
         }
 
         var isLow = BatteryLevel.IsLow(percent, settings.LowThreshold(device.Id));
         var levelColor = isLow ? colors.Low : colors.Normal;
-        var toolTip = $"{device.Name} – {DeviceItem.FormatPercent(percent)}";
-        if (isLow)
-        {
-            toolTip += $" ({DeviceItem.LowLevelText})";
-        }
+        var level = DeviceItem.FormatPercent(percent);
+        var toolTip = BadgeContent.ToolTip(device.Name, isLow ? $"{level} ({DeviceItem.LowLevelText})" : level);
 
-        // Without the number the glyph itself carries the warning color. High contrast has no warning color
-        // (Low equals Normal), so a low level keeps its number there; the tooltip names it either way
-        var showsNumber = settings.ShowPercent || (isLow && colors.Low == colors.Normal);
-        return showsNumber
+        // High contrast has no warning color (Low equals Normal); the tooltip names a low level either way
+        return BadgeContent.ShowsNumber(settings.ShowPercent, isLow, hasLowColor: colors.Low != colors.Normal)
             ? new DeviceBadge(device.Id, glyph, percent, colors.Normal, levelColor, toolTip)
             : new DeviceBadge(device.Id, glyph, null, levelColor, levelColor, toolTip);
     }

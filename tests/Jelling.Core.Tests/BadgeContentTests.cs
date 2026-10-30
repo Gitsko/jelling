@@ -1,0 +1,53 @@
+namespace Jelling.Core.Tests;
+
+public class BadgeContentTests
+{
+    [Theory]
+    [InlineData(true, false, true, true)]
+    [InlineData(false, false, true, false)]
+    [InlineData(false, true, true, false)]
+    [InlineData(false, true, false, true)]
+    [InlineData(false, false, false, false)]
+    public void ShowsNumberWhenAskedOrWhenLowHasNoOwnColor(bool showPercent, bool isLow, bool hasLowColor, bool expected)
+    {
+        Assert.Equal(expected, BadgeContent.ShowsNumber(showPercent, isLow, hasLowColor));
+    }
+
+    [Fact]
+    public void JoinsNameAndLevel()
+    {
+        Assert.Equal("MX Keys – 80 %", BadgeContent.ToolTip("MX Keys", "80 %"));
+    }
+
+    [Fact]
+    public void IsTheNameAloneWithoutLevel()
+    {
+        Assert.Equal("MX Keys", BadgeContent.ToolTip("MX Keys", null));
+    }
+
+    [Fact]
+    public void ShortensALongNameButKeepsTheLevel()
+    {
+        var toolTip = BadgeContent.ToolTip(new string('x', 200), "15 % (low)");
+
+        Assert.Equal(BadgeContent.MaxToolTipLength, toolTip.Length);
+        Assert.EndsWith("… – 15 % (low)", toolTip);
+    }
+
+    [Fact]
+    public void ShortensALongNameWithoutLevel()
+    {
+        var toolTip = BadgeContent.ToolTip(new string('x', 200), null);
+
+        Assert.Equal(BadgeContent.MaxToolTipLength, toolTip.Length);
+        Assert.EndsWith("x…", toolTip);
+    }
+
+    [Fact]
+    public void KeepsANameThatJustFits()
+    {
+        var name = new string('x', BadgeContent.MaxToolTipLength);
+
+        Assert.Equal(name, BadgeContent.ToolTip(name, null));
+    }
+}

@@ -140,6 +140,19 @@ public class LowBatteryNotifierTests
         Assert.Equal([Headset], Check(Device(Headset, 15)));
     }
 
+    [Fact]
+    public void WarnsAtTheLoweredThresholdWithoutChargingInBetween()
+    {
+        _thresholds[Headset] = 30;
+        Check(Device(Headset, 28));
+
+        // 28 stays within the rearm margin of 20, so only the reset lets the new threshold warn
+        _thresholds[Headset] = 20;
+        _notifier.Reset(Headset);
+
+        Assert.Equal([Headset], Check(Device(Headset, 20)));
+    }
+
     private Guid[] Check(params BatteryDevice[] devices) =>
         _notifier.Check(devices, id => _thresholds.GetValueOrDefault(id, BatteryLevel.DefaultLowThreshold))
             .Select(device => device.Id).ToArray();

@@ -14,6 +14,9 @@ public partial class App : Application
 {
     private const string TrayGlyph = "\uE702";
 
+    // At autostart Explorer may not take tray icons yet; without the icon the app cannot be reached
+    private static readonly TimeSpan TrayIconRetryDelay = TimeSpan.FromSeconds(5);
+
     private readonly IBatteryProvider _provider = new PnpBatteryProvider();
     private readonly RefreshCoalescer _refresh;
     private readonly DeviceSettings _settings = new(Path.Combine(
@@ -33,6 +36,8 @@ public partial class App : Application
     private IReadOnlyList<BatteryDevice> _devices = [];
     private System.Drawing.Color _trayColor;
     private DeviceColors _deviceColors = null!;
+    private DispatcherQueueTimer? _trayIconRetry;
+    private bool _trayIconFailureLogged;
 
     // Callbacks already queued on the dispatcher still run after Shutdown; they must not re-create icons
     private bool _shuttingDown;
@@ -113,8 +118,7 @@ public partial class App : Application
             ContextFlyout = menu,
         };
 
-        // false: keep the process out of Efficiency Mode so the flyout opens without delay
-        _trayIcon.ForceCreate(false);
+        CreateTrayIcon();
 
         // Raised for theme, accent and high-contrast changes, often several times per change
         _uiSettings.ColorValuesChanged += (_, _) => dispatcher.TryEnqueue(ApplyTheme);
@@ -126,40 +130,66 @@ public partial class App : Application
         }
     }
 
-    private void ApplyTheme()
+    private void CreateTrayIcon()
     {
+        if (_shuttingDown || _trayIcon is null)
+        {
+            return;
+        }
+
         try
         {
-            if (_shuttingDown || _trayIcon is null)
-            {
-                return;
-            }
-
-            var color = TrayColor();
-            var deviceColors = CurrentDeviceColors();
-            if (color == _trayColor && deviceColors == _deviceColors)
-            {
-                return;
-            }
-
-            _trayColor = color;
-            _deviceColors = deviceColors;
-
-            // TaskbarIcon does not own the image it shows
-            var previous = _trayIcon.Icon;
-            _trayIcon.Icon = TrayIconRenderer.Render(TrayGlyph, color);
-            previous?.Dispose();
-
-            // Device icons re-render because their look includes the color; the flyout rows follow
-            // the theme by themselves, and rebuilding them would close an open threshold list
-            ShowInTaskbar();
+            // false: keep the process out of Efficiency Mode so the flyout opens without delay
+            _trayIcon.ForceCreate(false);
         }
         catch (Exception exception)
         {
-            // The icons keep their old color; a failed redraw must not end the tray app
-            CrashLog.Write("Theme", exception);
+            // A tray that never accepts the icon would otherwise be logged every few seconds
+            if (!_trayIconFailureLogged)
+            {
+                CrashLog.Write("TrayIcon", exception);
+                _trayIconFailureLogged = true;
+            }
+
+            if (_trayIconRetry is null)
+            {
+                _trayIconRetry = DispatcherQueue.GetForCurrentThread().CreateTimer();
+                _trayIconRetry.Interval = TrayIconRetryDelay;
+                _trayIconRetry.IsRepeating = false;
+                _trayIconRetry.Tick += (_, _) => CreateTrayIcon();
+            }
+
+            _trayIconRetry.Start();
         }
     }
+
+    // The icons keep their old color when this fails
+    private void ApplyTheme() => Guard("Theme", () =>
+    {
+        if (_shuttingDown || _trayIcon is null)
+        {
+            return;
+        }
+
+        var color = TrayColor();
+        var deviceColors = CurrentDeviceColors();
+        if (color == _trayColor && deviceColors == _deviceColors)
+        {
+            return;
+        }
+
+        _trayColor = color;
+        _deviceColors = deviceColors;
+
+        // TaskbarIcon does not own the image it shows
+        var previous = _trayIcon.Icon;
+        _trayIcon.Icon = TrayIconRenderer.Render(TrayGlyph, color);
+        previous?.Dispose();
+
+        // Device icons re-render because their look includes the color; the flyout rows follow
+        // the theme by themselves, and rebuilding them would close an open threshold list
+        ShowInTaskbar();
+    });
 
     // Dark blue loses its contrast on a dark taskbar, so that one gets a light blue;
     // high contrast themes set their own taskbar colors and ignore the light/dark setting
@@ -279,85 +309,34 @@ public partial class App : Application
         _deviceIcons?.Update(inElement ? [] : badges);
     }
 
-    private void ShowInTaskbarAfterRecheck()
-    {
-        try
-        {
-            ShowInTaskbar();
-        }
-        catch (Exception exception)
-        {
-            // Raised from the element's timer; a failed redraw must not end the tray app
-            CrashLog.Write("Redraw", exception);
-        }
-    }
+    // Raised from the element's timer
+    private void ShowInTaskbarAfterRecheck() => Guard("Redraw", ShowInTaskbar);
 
     private void WarnLow()
     {
+        // One failed toast must not cost the other devices theirs; the tray and flyout still show it
         foreach (var device in _lowBattery.Check(_devices, _settings.LowThreshold))
         {
-            try
-            {
-                _toasts?.ShowLow(device);
-            }
-            catch (Exception exception)
-            {
-                // One failed toast must not cost the other devices theirs; the tray and flyout still show it
-                CrashLog.Write("Toast", exception);
-            }
+            Guard("Toast", () => _toasts?.ShowLow(device));
         }
     }
 
     private void TogglePin(Guid deviceId)
     {
-        try
-        {
-            _settings.TogglePin(deviceId);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            // The pin still applies until the app ends; only saving it failed
-            CrashLog.Write("Settings", exception);
-        }
+        Save(() => _settings.TogglePin(deviceId));
 
         // From the last list: the pin is a local change, there is nothing new to ask Windows for
         ShowLastDevices();
     }
 
-    private void ShowLastDevices()
-    {
-        try
-        {
-            ShowDevices();
-        }
-        catch (Exception exception)
-        {
-            // Raised from the flyout; a failed redraw must not end the tray app
-            CrashLog.Write("Redraw", exception);
-        }
-    }
+    // Raised from the flyout
+    private void ShowLastDevices() => Guard("Redraw", ShowDevices);
 
+    // Raised from the menu
     private void SetShowPercent(bool show)
     {
-        try
-        {
-            _settings.SetShowPercent(show);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            // The choice still applies until the app ends; only saving it failed
-            CrashLog.Write("Settings", exception);
-        }
-
-        try
-        {
-            ShowInTaskbar();
-        }
-        catch (Exception exception)
-        {
-            // Raised from the menu; a failed redraw must not end the tray app
-            CrashLog.Write("Redraw", exception);
-        }
+        Save(() => _settings.SetShowPercent(show));
+        Guard("Redraw", ShowInTaskbar);
     }
 
     private void SetLowThreshold(Guid deviceId, int threshold)
@@ -368,17 +347,10 @@ public partial class App : Application
             return;
         }
 
-        try
-        {
-            _settings.SetLowThreshold(deviceId, threshold);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            // The threshold still applies until the app ends; only saving it failed
-            CrashLog.Write("Settings", exception);
-        }
+        Save(() => _settings.SetLowThreshold(deviceId, threshold));
 
-        try
+        // Raised from the flyout
+        Guard("LowThreshold", () =>
         {
             // The flyout rebuilds its rows itself once the list has closed; here they would close it under the user
             ShowInTaskbar();
@@ -387,17 +359,39 @@ public partial class App : Application
             // a threshold raised above the current level warns at once
             _lowBattery.Reset(deviceId);
             WarnLow();
+        });
+    }
+
+    // The setting still applies until the app ends; only saving it failed
+    private static void Save(Action change)
+    {
+        try
+        {
+            change();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            CrashLog.Write("Settings", exception);
+        }
+    }
+
+    // For work raised from menus, the flyout, timers and system events: a failure must not end the tray app
+    private static void Guard(string source, Action action)
+    {
+        try
+        {
+            action();
         }
         catch (Exception exception)
         {
-            // Raised from the flyout; a failed redraw must not end the tray app
-            CrashLog.Write("LowThreshold", exception);
+            CrashLog.Write(source, exception);
         }
     }
 
     private void Shutdown()
     {
         _shuttingDown = true;
+        _trayIconRetry?.Stop();
 
         // A start during shutdown would otherwise be redirected to this dying instance and get lost
         AppInstance.GetCurrent().UnregisterKey();

@@ -10,7 +10,8 @@ namespace Jelling.App;
 /// </summary>
 public sealed class DeviceTrayIcons(Action onClick) : IDisposable
 {
-    private readonly Dictionary<Guid, (TaskbarIcon Icon, DeviceBadge Badge)> _icons = [];
+    // Size is the pixel size the icon was rendered at; a changed display scale needs a new image
+    private readonly Dictionary<Guid, (TaskbarIcon Icon, DeviceBadge Badge, int Size)> _icons = [];
 
     // Icons whose NotifyIconSettings entry Explorer had not written yet when they were added
     private readonly HashSet<Guid> _unpromoted = [];
@@ -25,24 +26,26 @@ public sealed class DeviceTrayIcons(Action onClick) : IDisposable
             Remove(id);
         }
 
+        var size = TrayIconRenderer.SmallIconSize();
         foreach (var badge in badges)
         {
             if (_icons.TryGetValue(badge.Id, out var current))
             {
-                if (current.Badge != badge)
+                if (current.Badge != badge || current.Size != size)
                 {
+                    // The tooltip first: should it throw, no new image has been rendered that nothing owns.
                     // The shell copies the image on update, so the previous one can be released
-                    var previous = current.Icon.Icon;
-                    current.Icon.Icon = Render(badge);
                     current.Icon.ToolTipText = badge.ToolTip;
+                    var previous = current.Icon.Icon;
+                    current.Icon.Icon = Render(badge, size);
                     previous?.Dispose();
-                    _icons[badge.Id] = (current.Icon, badge);
+                    _icons[badge.Id] = (current.Icon, badge, size);
                 }
 
                 continue;
             }
 
-            Add(badge);
+            Add(badge, size);
         }
     }
 
@@ -54,13 +57,13 @@ public sealed class DeviceTrayIcons(Action onClick) : IDisposable
         }
     }
 
-    private void Add(DeviceBadge badge)
+    private void Add(DeviceBadge badge, int size)
     {
         var icon = new TaskbarIcon
         {
             // Must be set before ForceCreate
             Id = DeviceIconId.For(Environment.ProcessPath!, badge.Id),
-            Icon = Render(badge),
+            Icon = Render(badge, size),
             ToolTipText = badge.ToolTip,
             NoLeftClickDelay = true,
             LeftClickCommand = new RelayCommand(onClick),
@@ -69,7 +72,7 @@ public sealed class DeviceTrayIcons(Action onClick) : IDisposable
         try
         {
             icon.ForceCreate(false);
-            _icons[badge.Id] = (icon, badge);
+            _icons[badge.Id] = (icon, badge, size);
             if (!TrayPromotion.TryPromote(icon.Id))
             {
                 _unpromoted.Add(icon.Id);
@@ -99,6 +102,6 @@ public sealed class DeviceTrayIcons(Action onClick) : IDisposable
         image?.Dispose();
     }
 
-    private static Icon Render(DeviceBadge badge) =>
-        TrayIconRenderer.RenderDevice(badge.Glyph, badge.Percent, badge.GlyphColor, badge.LevelColor);
+    private static Icon Render(DeviceBadge badge, int size) =>
+        TrayIconRenderer.RenderDevice(badge.Glyph, badge.Percent, badge.GlyphColor, badge.LevelColor, size);
 }

@@ -55,6 +55,45 @@ public class DeviceMergerTests
     }
 
     [Fact]
+    public void TakesBatteryFromServiceNodeListedAfterDeviceNodeWithout()
+    {
+        PnpNode[] nodes =
+        [
+            new(@"BTHENUM\Dev_001A7D000001\7&1a2b3c4d&0&BluetoothDevice_001A7D000001", Epos, null),
+            new(@"BTHENUM\{0000111e-0000-1000-8000-00805f9b34fb}_VID&00010082_PID&0185\7&1a2b3c4d&0&001A7D000001_C00000000", Epos, 70),
+        ];
+        DeviceContainer[] containers = [new(Epos, "EPOS ADAPT 260", ["Communication.Headset.Bluetooth"], IsConnected: true)];
+
+        Assert.Equal(70, DeviceMerger.Merge(nodes, containers).Single().BatteryPercent);
+    }
+
+    [Theory]
+    [InlineData(101)]
+    [InlineData(255)]
+    [InlineData(-1)]
+    public void IgnoresBatteryValuesOutsidePercentRange(int invalid)
+    {
+        PnpNode[] nodes =
+        [
+            new(@"BTHENUM\Dev_001A7D000001\7&1a2b3c4d&0&BluetoothDevice_001A7D000001", Epos, invalid),
+            new(@"BTHENUM\{0000111e-0000-1000-8000-00805f9b34fb}_VID&00010082_PID&0185\7&1a2b3c4d&0&001A7D000001_C00000000", Epos, 60),
+        ];
+        PnpNode[] onlyInvalid = [nodes[0]];
+        DeviceContainer[] containers = [new(Epos, "EPOS ADAPT 260", ["Communication.Headset.Bluetooth"], IsConnected: true)];
+
+        Assert.Equal(60, DeviceMerger.Merge(nodes, containers).Single().BatteryPercent);
+        Assert.Null(DeviceMerger.Merge(onlyInvalid, containers).Single().BatteryPercent);
+    }
+
+    [Fact]
+    public void IgnoresBluetoothNodeWithoutContainer()
+    {
+        PnpNode[] nodes = [new(@"BTHLE\Dev_c0ffee000002\7&5e6f708&0&c0ffee000002", Mouse, 100)];
+
+        Assert.Empty(DeviceMerger.Merge(nodes, []));
+    }
+
+    [Fact]
     public void SortsConnectedDevicesFirstThenByName()
     {
         PnpNode[] nodes =
