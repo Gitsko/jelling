@@ -20,6 +20,9 @@
     <DefaultLanguage>en-US</DefaultLanguage>
     <!-- Program.cs owns Main for the single-instance check -->
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+    <!-- packages.lock.json pins every package, transitive ones included; CI fails instead of restoring something else -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestoreLockedMode Condition="'$(CI)' == 'true'">true</RestoreLockedMode>
   </PropertyGroup>
 
   <!-- WinUI 3 cannot build for AnyCPU; default to x64 so a plain `dotnet build` works -->

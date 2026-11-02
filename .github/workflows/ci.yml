@@ -15,8 +15,8 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
         with:
           global-json-file: global.json
       - name: Build
@@ -34,14 +34,18 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
+      # Build provenance: lets a download be traced to this workflow run with gh attestation verify
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     env:
       TAG: ${{ github.ref_name }}
     steps:
       # The job has write access; gh uses GH_TOKEN, so the token need not stay in .git/config for the build
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
         with:
           global-json-file: global.json
       - name: Publish self-contained ZIPs
@@ -59,15 +63,25 @@ jobs:
           # sha256sum -c format with LF line ends, so the download can be checked on any system
           $sums = Get-ChildItem Jelling-*.zip | ForEach-Object { "$((Get-FileHash $_ -Algorithm SHA256).Hash)  $($_.Name)`n" }
           [IO.File]::WriteAllText("$($PWD.ProviderPath)/SHA256SUMS.txt", -join $sums)
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: Jelling-*.zip
       - name: Create release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # A re-run after a failed upload finds the release already there and only replaces the files
-          gh release view $env:TAG *> $null
+          # A re-run after a failed upload finds the release already there and completes it. Files once
+          # published stay: a rebuild differs byte for byte, and earlier downloads would no longer match the sums
+          $assets = gh release view $env:TAG --json assets --jq '.assets[].name' 2> $null
           if ($LASTEXITCODE) {
             gh release create $env:TAG --generate-notes
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            $assets = @()
           }
-          gh release upload $env:TAG (Get-ChildItem Jelling-*.zip) SHA256SUMS.txt --clobber
+          if (@($assets).Count -gt 0) {
+            Write-Error "Release $env:TAG already has files ($($assets -join ', ')); delete them first to publish a rebuild"
+            exit 1
+          }
+          gh release upload $env:TAG (Get-ChildItem Jelling-*.zip) SHA256SUMS.txt
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
