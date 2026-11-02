@@ -323,7 +323,7 @@ public partial class App : Application
         _shuttingDown = true;
         try
         {
-            _trayIconRetry?.Stop();
+            Guard("Shutdown", () => _trayIconRetry?.Stop());
 
             // A start during shutdown would otherwise be redirected to this dying instance and get lost
             Guard("Shutdown", () => AppInstance.GetCurrent().UnregisterKey());

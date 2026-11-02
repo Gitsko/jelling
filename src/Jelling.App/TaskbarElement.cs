@@ -85,6 +85,13 @@ public sealed class TaskbarElement : IDisposable
             ReleaseStrip();
         }
 
+        // The tray icons that stand in are rendered right after this, at this DPI; Recheck compares against it
+        var dpi = NativeMethods.TaskbarDpi();
+        if (dpi != 0)
+        {
+            _lastTaskbarDpi = dpi;
+        }
+
         if (_badges.Count == 0)
         {
             _timer.Stop();

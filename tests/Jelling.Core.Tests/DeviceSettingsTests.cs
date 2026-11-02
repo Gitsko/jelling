@@ -161,6 +161,23 @@ public sealed class DeviceSettingsTests : IDisposable
     }
 
     [Fact]
+    public void FileLockedAtStartIsReadBeforeTheFirstSave()
+    {
+        new DeviceSettings(SettingsPath).TogglePin(Headset);
+        DeviceSettings settings;
+        using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            settings = new DeviceSettings(SettingsPath);
+        }
+
+        settings.TogglePin(Mouse);
+
+        var reloaded = new DeviceSettings(SettingsPath);
+        Assert.True(reloaded.IsPinned(Headset));
+        Assert.True(reloaded.IsPinned(Mouse));
+    }
+
+    [Fact]
     public void NullLiteralMeansDefaults()
     {
         Directory.CreateDirectory(_folder);

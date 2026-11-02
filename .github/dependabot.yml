@@ -1,7 +1,11 @@
-# The workflow pins actions by commit SHA; this keeps the pins current
+# The workflow pins actions by commit SHA and packages.lock.json pins the NuGet packages; this keeps both current
 version: 2
 updates:
   - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+  - package-ecosystem: nuget
     directory: /
     schedule:
       interval: monthly

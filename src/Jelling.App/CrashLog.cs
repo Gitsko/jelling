@@ -1,3 +1,7 @@
+using System.Runtime.InteropServices;
+using System.Text;
+using Jelling.Core;
+
 namespace Jelling.App;
 
 /// <summary>
@@ -16,7 +20,7 @@ public static class CrashLog
     private static readonly Lock Gate = new();
 
     // Paths in stack traces and messages carry the user name; the log gets posted in issues
-    private static readonly string UserProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+    private static readonly PathRedactor UserProfile = UserProfileRedactor();
 
     public static void Write(string source, Exception? exception)
     {
@@ -30,9 +34,7 @@ public static class CrashLog
                     File.Move(LogPath, OldLogPath, overwrite: true);
                 }
 
-                var details = UserProfile.Length > 0
-                    ? exception?.ToString().Replace(UserProfile, "%USERPROFILE%", StringComparison.OrdinalIgnoreCase)
-                    : exception?.ToString();
+                var details = exception is null ? "" : UserProfile.Redact(exception.ToString());
                 File.AppendAllText(LogPath, $"{DateTimeOffset.Now:O} [{source}] {details}{Environment.NewLine}");
             }
         }
@@ -41,4 +43,21 @@ public static class CrashLog
             // Logging must never be the reason the app goes down
         }
     }
+
+    // The 8.3 short form too: TEMP often holds it
+    private static PathRedactor UserProfileRedactor()
+    {
+        var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        return new PathRedactor([profile, profile.Length > 0 ? ShortPath(profile) : ""], "%USERPROFILE%");
+    }
+
+    private static string ShortPath(string path)
+    {
+        var buffer = new StringBuilder(260);
+        var length = GetShortPathName(path, buffer, buffer.Capacity);
+        return length > 0 && length < buffer.Capacity ? buffer.ToString(0, (int)length) : "";
+    }
+
+    [DllImport("kernel32.dll", EntryPoint = "GetShortPathNameW", CharSet = CharSet.Unicode)]
+    private static extern uint GetShortPathName(string longPath, StringBuilder shortPath, int bufferLength);
 }

@@ -16,6 +16,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
         with:
           global-json-file: global.json
@@ -37,10 +39,26 @@ jobs:
       # Build provenance: lets a download be traced to this workflow run with gh attestation verify
       id-token: write
       attestations: write
-      artifact-metadata: write
     env:
       TAG: ${{ github.ref_name }}
     steps:
+      # Files once published stay: a rebuild differs byte for byte, and earlier downloads would no longer
+      # match the sums. Checked before the build, so a refused rebuild leaves no attestation behind
+      - name: Check release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $release = gh release view $env:TAG --json isDraft,assets 2> $null
+          if (-not $LASTEXITCODE) {
+            $release = $release | ConvertFrom-Json
+            if (-not $release.isDraft -and $release.assets.Count -gt 0) {
+              Write-Error "Release $env:TAG is published with files ($($release.assets.name -join ', ')); delete them first to publish a rebuild"
+              exit 1
+            }
+          }
+          exit 0
       # The job has write access; gh uses GH_TOKEN, so the token need not stay in .git/config for the build
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -71,17 +89,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # A re-run after a failed upload finds the release already there and completes it. Files once
-          # published stay: a rebuild differs byte for byte, and earlier downloads would no longer match the sums
-          $assets = gh release view $env:TAG --json assets --jq '.assets[].name' 2> $null
+          # Uploaded to a draft and published last, so the latest release never lacks a file. --verify-tag:
+          # without the tag gh would create it on the default branch, which is not what was built
+          gh release view $env:TAG --json isDraft 2> $null | Out-Null
           if ($LASTEXITCODE) {
-            gh release create $env:TAG --generate-notes
+            gh release create $env:TAG --draft --verify-tag --generate-notes
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
-            $assets = @()
           }
-          if (@($assets).Count -gt 0) {
-            Write-Error "Release $env:TAG already has files ($($assets -join ', ')); delete them first to publish a rebuild"
-            exit 1
-          }
-          gh release upload $env:TAG (Get-ChildItem Jelling-*.zip) SHA256SUMS.txt
+          # Replacing is safe here: the check above leaves only a draft or a release without files, so
+          # nobody can have downloaded them; a re-run after a failed upload completes it
+          gh release upload $env:TAG (Get-ChildItem Jelling-*.zip) SHA256SUMS.txt --clobber
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          gh release edit $env:TAG --draft=false
           if ($LASTEXITCODE) { exit $LASTEXITCODE }

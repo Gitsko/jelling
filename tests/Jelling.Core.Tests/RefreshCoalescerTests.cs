@@ -113,4 +113,30 @@ public class RefreshCoalescerTests
 
         Assert.True(first.IsCompletedSuccessfully);
     }
+
+    [Fact]
+    public async Task FailedRunWithoutLaterRequestPassesItsException()
+    {
+        var refresh = new ControlledRefresh();
+        var coalescer = new RefreshCoalescer(refresh.Run);
+
+        var first = coalescer.Request();
+        refresh.FailNext();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => first);
+    }
+
+    [Fact]
+    public async Task FailedTrailingRunFailsTheEarlierRequestToo()
+    {
+        var refresh = new ControlledRefresh();
+        var coalescer = new RefreshCoalescer(refresh.Run);
+
+        var first = coalescer.Request();
+        _ = coalescer.Request();
+        refresh.CompleteNext();
+        refresh.FailNext();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => first);
+    }
 }

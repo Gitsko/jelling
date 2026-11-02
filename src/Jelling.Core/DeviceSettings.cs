@@ -7,31 +7,25 @@ namespace Jelling.Core;
 /// devices whether the taskbar shows the level as a number. Stored as JSON; a missing file means nothing
 /// pinned, default thresholds and numbers shown; one that is no valid JSON is kept aside as
 /// settings.invalid.json rather than overwritten. One that exists but cannot be read (locked, no access)
-/// reads as defaults too, but is never overwritten: saving then throws instead.
+/// reads as defaults too, but is never overwritten: each change reads it again first, and saving throws
+/// while it still cannot be read.
 /// </summary>
 public sealed class DeviceSettings
 {
     private readonly string _path;
-    private readonly HashSet<Guid> _pinned;
-    private readonly Dictionary<Guid, int> _lowThresholds;
+    private readonly HashSet<Guid> _pinned = [];
+    private readonly Dictionary<Guid, int> _lowThresholds = [];
 
     // The file holds settings this instance never saw; writing the defaults over them would lose them
-    private readonly bool _readFailed;
+    private bool _readFailed;
 
     public DeviceSettings(string path)
     {
         _path = path;
-        var stored = Read(path, out _readFailed);
-        _pinned = [.. stored?.PinnedDevices ?? []];
-        ShowPercent = stored?.ShowPercent ?? true;
-
-        // A hand-edited value outside the offered ones would leave the flyout's selection empty
-        _lowThresholds = (stored?.LowThresholds ?? [])
-            .Where(entry => BatteryLevel.IsOfferedThreshold(entry.Value))
-            .ToDictionary();
+        _readFailed = !TryLoad();
     }
 
-    public bool ShowPercent { get; private set; }
+    public bool ShowPercent { get; private set; } = true;
 
     public bool IsPinned(Guid deviceId) => _pinned.Contains(deviceId);
 
@@ -40,6 +34,7 @@ public sealed class DeviceSettings
 
     public void TogglePin(Guid deviceId)
     {
+        ReloadIfReadFailed();
         if (!_pinned.Remove(deviceId))
         {
             _pinned.Add(deviceId);
@@ -56,14 +51,51 @@ public sealed class DeviceSettings
             throw new ArgumentOutOfRangeException(nameof(threshold), threshold, "Not one of the offered thresholds");
         }
 
+        ReloadIfReadFailed();
         _lowThresholds[deviceId] = threshold;
         Save();
     }
 
     public void SetShowPercent(bool show)
     {
+        ReloadIfReadFailed();
         ShowPercent = show;
         Save();
+    }
+
+    // E.g. a virus scanner held the file at startup; once it can be read, the change builds on what it holds
+    private void ReloadIfReadFailed()
+    {
+        if (_readFailed)
+        {
+            _readFailed = !TryLoad();
+        }
+    }
+
+    // False leaves the current values; the file exists but cannot be read
+    private bool TryLoad()
+    {
+        var stored = Read(_path, out var failed);
+        if (failed)
+        {
+            return false;
+        }
+
+        _pinned.Clear();
+        _pinned.UnionWith(stored?.PinnedDevices ?? []);
+        ShowPercent = stored?.ShowPercent ?? true;
+
+        // A hand-edited value outside the offered ones would leave the flyout's selection empty
+        _lowThresholds.Clear();
+        foreach (var (deviceId, threshold) in stored?.LowThresholds ?? [])
+        {
+            if (BatteryLevel.IsOfferedThreshold(threshold))
+            {
+                _lowThresholds[deviceId] = threshold;
+            }
+        }
+
+        return true;
     }
 
     private void Save()
