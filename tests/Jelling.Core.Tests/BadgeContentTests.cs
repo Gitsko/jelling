@@ -50,4 +50,12 @@ public class BadgeContentTests
 
         Assert.Equal(name, BadgeContent.ToolTip(name, null));
     }
+
+    [Fact]
+    public void DoesNotCutAnEmojiInHalf()
+    {
+        var name = new string('x', 125) + "\U0001F3A7" + new string('x', 50);
+
+        Assert.Equal(new string('x', 125) + "…", BadgeContent.ToolTip(name, null));
+    }
 }

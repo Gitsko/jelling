@@ -21,7 +21,7 @@
   <data name="BatteryUnknown" xml:space="preserve"><value>Battery level unknown</value></data>
   <data name="LowThresholdHeader.Text" xml:space="preserve"><value>Warn at</value></data>
   <data name="LowBatteryTitle" xml:space="preserve"><value>{0}: battery low</value></data>
-  <data name="LowBatteryText" xml:space="preserve"><value>{0} % left. Charge it soon.</value></data>
+  <data name="LowBatteryText" xml:space="preserve"><value>{0} left. Charge it soon.</value></data>
   <data name="CloseButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Close</value></data>
   <data name="CloseButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Close</value></data>
   <data name="GitHubLink.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Project page on GitHub</value></data>

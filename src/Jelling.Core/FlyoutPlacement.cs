@@ -29,9 +29,10 @@ public static class FlyoutPlacement
             ? workArea.Bottom - (int)Math.Round(TaskbarHeightEpx * scale)
             : workArea.Bottom;
 
-        var x = workArea.Right - width - margin;
+        // A work area too small for the flyout keeps its left and top edges on screen; the rest is cut off
+        var x = Math.Max(workArea.X, workArea.Right - width - margin);
         var y = Math.Max(workArea.Y + margin, bottom - height - margin);
-        var fittedHeight = Math.Min(height, bottom - margin - y);
+        var fittedHeight = Math.Max(0, Math.Min(height, bottom - margin - y));
 
         return new PixelRect(x, y, width, fittedHeight);
     }

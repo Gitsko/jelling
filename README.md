@@ -43,13 +43,15 @@ Requires Windows 11 (x64 or ARM64). Nothing else: .NET and the Windows App SDK a
 2. Unzip it to a folder that stays, for example `%LOCALAPPDATA%\Programs\Jelling`. If you move the folder later, turn "Start with Windows" on again
 3. Run `Jelling.App.exe`
 
-To check the download, compare `Get-FileHash Jelling-win-x64.zip` in PowerShell with the release's `SHA256SUMS.txt`.
+To check the download, compare `Get-FileHash Jelling-win-x64.zip` in PowerShell with the release's `SHA256SUMS.txt`. With the GitHub CLI, `gh attestation verify Jelling-win-x64.zip --repo Gitsko/jelling` also confirms that the ZIP was built by this repository's release workflow.
 
 The exe is not code-signed, so SmartScreen may warn on the first start. Choose "More info" and then "Run anyway". The warning does not appear if you open the ZIP's properties and tick "Unblock" before unzipping. With Smart App Control turned on, Windows blocks unsigned apps like this one and offers no "Run anyway".
 
 To update, exit Jelling from the right-click menu, then replace the folder's contents with the new ZIP. Keep the folder where it is so autostart and the taskbar positions stay.
 
 To uninstall, turn off "Start with Windows", exit the app and delete its folder. Settings (`settings.json`) and the error log (`crash.log`, older entries in `crash.old.log`) live in `%LOCALAPPDATA%\Jelling`; delete that folder too.
+
+When reporting a problem, attaching `crash.log` helps. Paths under your user folder are written as `%USERPROFILE%`, but device names can still appear, so read it through before posting.
 
 ## Privacy
 

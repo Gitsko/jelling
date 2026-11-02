@@ -141,4 +141,46 @@ public sealed class DeviceSettingsTests : IDisposable
         Assert.Equal(BatteryLevel.DefaultLowThreshold, settings.LowThreshold(Headset));
         Assert.Equal(30, settings.LowThreshold(Mouse));
     }
+
+    [Fact]
+    public void LockedFileReadsAsDefaultsButIsNotOverwritten()
+    {
+        new DeviceSettings(SettingsPath).TogglePin(Headset);
+
+        using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            var settings = new DeviceSettings(SettingsPath);
+
+            Assert.False(settings.IsPinned(Headset));
+            Assert.Throws<IOException>(() => settings.TogglePin(Mouse));
+        }
+
+        var reloaded = new DeviceSettings(SettingsPath);
+        Assert.True(reloaded.IsPinned(Headset));
+        Assert.False(reloaded.IsPinned(Mouse));
+    }
+
+    [Fact]
+    public void NullLiteralMeansDefaults()
+    {
+        Directory.CreateDirectory(_folder);
+        File.WriteAllText(SettingsPath, "null");
+
+        var settings = new DeviceSettings(SettingsPath);
+        settings.TogglePin(Headset);
+
+        Assert.True(new DeviceSettings(SettingsPath).IsPinned(Headset));
+    }
+
+    [Fact]
+    public void KeyThatIsNoGuidCountsAsCorruptFile()
+    {
+        Directory.CreateDirectory(_folder);
+        File.WriteAllText(SettingsPath, """{"LowThresholds":{"not-a-guid":30}}""");
+
+        var settings = new DeviceSettings(SettingsPath);
+
+        Assert.Equal(BatteryLevel.DefaultLowThreshold, settings.LowThreshold(Headset));
+        Assert.True(File.Exists(Path.Combine(_folder, "settings.invalid.json")));
+    }
 }

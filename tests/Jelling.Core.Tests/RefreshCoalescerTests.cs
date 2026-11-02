@@ -18,6 +18,8 @@ public class RefreshCoalescerTests
         }
 
         public void CompleteNext() => _pending.Dequeue().SetResult();
+
+        public void FailNext() => _pending.Dequeue().SetException(new InvalidOperationException());
     }
 
     [Fact]
@@ -93,5 +95,22 @@ public class RefreshCoalescerTests
         await coalescer.Request();
 
         Assert.Equal(2, runs);
+    }
+
+    [Fact]
+    public void RequestDuringFailedRunStillGetsItsTrailingRun()
+    {
+        var refresh = new ControlledRefresh();
+        var coalescer = new RefreshCoalescer(refresh.Run);
+
+        var first = coalescer.Request();
+        _ = coalescer.Request();
+        refresh.FailNext();
+
+        Assert.Equal(2, refresh.Runs);
+
+        refresh.CompleteNext();
+
+        Assert.True(first.IsCompletedSuccessfully);
     }
 }

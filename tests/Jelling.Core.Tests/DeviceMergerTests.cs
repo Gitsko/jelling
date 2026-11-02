@@ -128,4 +128,17 @@ public class DeviceMergerTests
     {
         Assert.Equal(expected, DeviceMerger.KindFromCategories(categoryIds));
     }
+
+    [Fact]
+    public void PicksTheSameLevelWhateverOrderTheNodesComeIn()
+    {
+        PnpNode service = new(@"BTHENUM\{0000111e-0000-1000-8000-00805f9b34fb}_VID&00010082_PID&0185\7&1a2b3c4d&0&001A7D000001_C00000000", Epos, 80);
+        PnpNode device = new(@"BTHENUM\Dev_001A7D000001\7&1a2b3c4d&0&BluetoothDevice_001A7D000001", Epos, 40);
+        DeviceContainer[] containers = [new(Epos, "EPOS ADAPT 260", ["Communication.Headset.Bluetooth"], IsConnected: true)];
+
+        var forward = DeviceMerger.Merge([service, device], containers);
+        var backward = DeviceMerger.Merge([device, service], containers);
+
+        Assert.Equal(forward, backward);
+    }
 }

@@ -9,8 +9,10 @@ namespace Jelling.App;
 /// </summary>
 public sealed class DeviceChangeWatcher : IDisposable
 {
-    // Not at once: a watcher that aborts again right away would otherwise restart in a tight loop
+    // Not at once: a watcher that aborts again right away would otherwise restart in a tight loop.
+    // A failed start waits twice as long before the next try, up to the maximum
     private static readonly TimeSpan RestartDelay = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan MaxRestartDelay = TimeSpan.FromMinutes(5);
 
     private readonly DeviceWatcher _nodes;
     private readonly DeviceWatcher _containers;
@@ -23,8 +25,7 @@ public sealed class DeviceChangeWatcher : IDisposable
     private volatile bool _containersEnumerated;
     private volatile bool _disposed;
 
-    /// <summary>Raised with a short description of what changed.</summary>
-    public event EventHandler<string>? Changed;
+    public event EventHandler? Changed;
 
     public DeviceChangeWatcher()
     {
@@ -40,16 +41,16 @@ public sealed class DeviceChangeWatcher : IDisposable
 
         // Startup enumerates every existing device as Added; that is not a change
         _nodes.Added += (_, device) => OnNodeAdded(device);
-        _nodes.Updated += (_, update) => { if (IsBluetooth(update.Id)) Raise("node updated", update.Id, update.Properties.Keys); };
-        _nodes.Removed += (_, update) => { if (IsBluetooth(update.Id)) Raise("node removed", update.Id, []); };
-        _nodes.EnumerationCompleted += (_, _) => _nodesEnumerated = true;
+        _nodes.Updated += (_, update) => { if (IsBluetooth(update.Id)) Raise(); };
+        _nodes.Removed += (_, update) => { if (IsBluetooth(update.Id)) Raise(); };
+        _nodes.EnumerationCompleted += (_, _) => OnEnumerationCompleted(() => _nodesEnumerated = true);
         _nodes.Stopped += (_, _) => OnStopped(_nodes, () => _nodesEnumerated = false);
 
         // A new container may get its Bluetooth nodes only afterwards, so Added is not filtered
-        _containers.Added += (_, container) => { if (_containersEnumerated) Raise("container added", container.Id, []); };
-        _containers.Updated += (_, update) => { if (IsBluetoothContainer(update.Id)) Raise("container updated", update.Id, update.Properties.Keys); };
-        _containers.Removed += (_, update) => { if (IsBluetoothContainer(update.Id)) Raise("container removed", update.Id, []); };
-        _containers.EnumerationCompleted += (_, _) => _containersEnumerated = true;
+        _containers.Added += (_, _) => { if (_containersEnumerated) Raise(); };
+        _containers.Updated += (_, update) => { if (IsBluetoothContainer(update.Id)) Raise(); };
+        _containers.Removed += (_, update) => { if (IsBluetoothContainer(update.Id)) Raise(); };
+        _containers.EnumerationCompleted += (_, _) => OnEnumerationCompleted(() => _containersEnumerated = true);
         _containers.Stopped += (_, _) => OnStopped(_containers, () => _containersEnumerated = false);
     }
 
@@ -61,9 +62,13 @@ public sealed class DeviceChangeWatcher : IDisposable
 
     public void Dispose()
     {
-        _disposed = true;
-        Stop(_nodes);
-        Stop(_containers);
+        // Under the lock, so a restart cannot start a watcher again between the check and Stop
+        lock (_gate)
+        {
+            _disposed = true;
+            Stop(_nodes);
+            Stop(_containers);
+        }
     }
 
     private static void Stop(DeviceWatcher watcher)
@@ -91,7 +96,19 @@ public sealed class DeviceChangeWatcher : IDisposable
 
         if (_nodesEnumerated)
         {
-            Raise("node added", device.Id, []);
+            Raise();
+        }
+    }
+
+    // Until both watchers have enumerated, Added is ignored and containers whose nodes are not known yet are
+    // filtered out; a device that connected meanwhile is reported here. The list read before the start, or
+    // before a restart, misses it otherwise
+    private void OnEnumerationCompleted(Action setEnumerated)
+    {
+        setEnumerated();
+        if (_nodesEnumerated && _containersEnumerated)
+        {
+            Raise();
         }
     }
 
@@ -117,32 +134,39 @@ public sealed class DeviceChangeWatcher : IDisposable
         _ = RestartAsync(watcher);
     }
 
+    // Whatever changed while the watcher was down is reported once it has enumerated again
     private async Task RestartAsync(DeviceWatcher watcher)
     {
-        await Task.Delay(RestartDelay);
-        if (_disposed)
+        for (var delay = RestartDelay; ; delay = Min(delay * 2, MaxRestartDelay))
         {
-            return;
-        }
+            await Task.Delay(delay);
+            lock (_gate)
+            {
+                if (_disposed)
+                {
+                    return;
+                }
 
-        try
-        {
-            watcher.Start();
-
-            // Whatever changed while the watcher was down went unreported
-            Raise("watcher restarted", "", []);
-        }
-        catch (Exception exception)
-        {
-            CrashLog.Write("DeviceWatcher", exception);
+                try
+                {
+                    watcher.Start();
+                    return;
+                }
+                catch (Exception exception)
+                {
+                    // Without a watcher the taskbar would only update when the flyout opens
+                    CrashLog.Write("DeviceWatcher", exception);
+                }
+            }
         }
     }
+
+    private static TimeSpan Min(TimeSpan a, TimeSpan b) => a < b ? a : b;
 
     // Classic devices enumerate under BTHENUM, BLE devices under BTHLE
     private static bool IsBluetooth(string instanceId) =>
         instanceId.StartsWith(@"BTHENUM\", StringComparison.OrdinalIgnoreCase)
         || instanceId.StartsWith(@"BTHLE\", StringComparison.OrdinalIgnoreCase);
 
-    private void Raise(string what, string id, IEnumerable<string> properties) =>
-        Changed?.Invoke(this, $"{what} {id} [{string.Join(", ", properties)}]");
+    private void Raise() => Changed?.Invoke(this, EventArgs.Empty);
 }

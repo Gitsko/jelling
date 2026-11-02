@@ -1,3 +1,5 @@
+using System.Runtime.ExceptionServices;
+
 namespace Jelling.Core;
 
 /// <summary>
@@ -25,11 +27,24 @@ public sealed class RefreshCoalescer(Func<Task> refresh)
 
     private async Task RunAsync()
     {
+        ExceptionDispatchInfo? failure;
         do
         {
             _requestedAgain = false;
-            await refresh();
+            failure = null;
+            try
+            {
+                await refresh();
+            }
+            catch (Exception exception)
+            {
+                // A request that came during the failed run still gets its own run
+                failure = ExceptionDispatchInfo.Capture(exception);
+            }
         }
         while (_requestedAgain);
+
+        // Only the last run's outcome matters to the callers; an earlier failure was superseded
+        failure?.Throw();
     }
 }

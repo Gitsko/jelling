@@ -54,4 +54,26 @@ public class FlyoutPlacementTests
 
         Assert.Equal(new PixelRect(3468, 768, 360, 300), bounds);
     }
+
+    [Fact]
+    public void KeepsLeftEdgeOnScreenInANarrowWorkArea()
+    {
+        var workArea = new PixelRect(0, 0, 300, 500);
+        var monitor = new PixelRect(0, 0, 300, 548);
+
+        var bounds = FlyoutPlacement.Calculate(workArea, monitor, hasTaskbar: true, width: 360, height: 300, scale: 1.0);
+
+        Assert.Equal(new PixelRect(0, 188, 360, 300), bounds);
+    }
+
+    [Fact]
+    public void NeverGetsANegativeHeightInAFlatWorkArea()
+    {
+        var workArea = new PixelRect(0, 0, 1920, 20);
+        var monitor = new PixelRect(0, 0, 1920, 68);
+
+        var bounds = FlyoutPlacement.Calculate(workArea, monitor, hasTaskbar: true, width: 360, height: 300, scale: 1.0);
+
+        Assert.Equal(new PixelRect(1548, 12, 360, 0), bounds);
+    }
 }

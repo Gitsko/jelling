@@ -27,8 +27,11 @@ public static class DeviceMerger
             .Select(g =>
             {
                 var container = containersById[g.Key];
-                // The property is a raw byte; a value outside 0-100 is no level, and another node may still have one
-                var battery = g.Select(n => n.BatteryPercent).FirstOrDefault(p => p is >= 0 and <= 100);
+                // The property is a raw byte; a value outside 0-100 is no level, and another node may still have one.
+                // Ordered, so two nodes with different levels give the same one whatever order Windows lists them in
+                var battery = g.OrderBy(n => n.InstanceId, StringComparer.OrdinalIgnoreCase)
+                    .Select(n => n.BatteryPercent)
+                    .FirstOrDefault(p => p is >= 0 and <= 100);
                 return new BatteryDevice(container.Id, container.Name, KindFromCategories(container.CategoryIds), battery, container.IsConnected);
             })
             .OrderByDescending(d => d.IsConnected)

@@ -37,11 +37,15 @@ public sealed class TaskbarElement : IDisposable
     private PixelRect? _drawnAt;
     private bool _pressed;
     private string? _lastError;
+    private uint _lastTaskbarDpi;
 
     // True when no tray icons are needed: the element shows every badge, or there is none to show
     private bool _coversBadges;
 
-    /// <summary>Raised when the element appears or gives way, so the tray icons can take over or step back.</summary>
+    /// <summary>
+    /// Raised when the element appears or gives way, so the tray icons can take over or step back, and when the
+    /// taskbar's scale changes while they stand in, so they are drawn again at the new size.
+    /// </summary>
     public event EventHandler? AvailabilityChanged;
 
     public TaskbarElement(Action onClick)
@@ -106,7 +110,17 @@ public sealed class TaskbarElement : IDisposable
     {
         var covered = _coversBadges;
         _coversBadges = TryPlace();
-        if (_coversBadges != covered)
+
+        // The tray icons are rendered at the taskbar's icon size; scaled by Explorer their digits blur
+        var taskbar = FindWindow("Shell_TrayWnd", null);
+        var dpi = taskbar == IntPtr.Zero ? 0 : GetDpiForWindow(taskbar);
+        var rescaled = dpi != 0 && _lastTaskbarDpi != 0 && dpi != _lastTaskbarDpi;
+        if (dpi != 0)
+        {
+            _lastTaskbarDpi = dpi;
+        }
+
+        if (_coversBadges != covered || (rescaled && !_coversBadges))
         {
             AvailabilityChanged?.Invoke(this, EventArgs.Empty);
         }

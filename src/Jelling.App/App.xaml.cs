@@ -61,6 +61,10 @@ public partial class App : Application
         // the coalescer, the list and the icons live on the UI thread
         var dispatcher = DispatcherQueue.GetForCurrentThread();
 
+        // A second start was redirected here by Program.Main; open the flyout instead of a second tray icon.
+        // Subscribed first, so a start that arrives while the rest is set up is not lost
+        AppInstance.GetCurrent().Activated += (_, _) => dispatcher.TryEnqueue(OpenFlyout);
+
         _flyout = new FlyoutWindow();
         _flyout.PinToggled += (_, deviceId) => TogglePin(deviceId);
         _flyout.LowThresholdChanged += (_, change) => SetLowThreshold(change.DeviceId, change.Threshold);
@@ -79,9 +83,6 @@ public partial class App : Application
         _watcher.Changed += (_, _) => dispatcher.TryEnqueue(() => _ = RefreshAsync());
         _watcher.Start();
 
-        // A second start was redirected here by Program.Main; open the flyout instead of a second tray icon
-        AppInstance.GetCurrent().Activated += (_, _) => dispatcher.TryEnqueue(OpenFlyout);
-
         var resources = new ResourceLoader();
         var title = resources.GetString("FlyoutHeader/Text");
 
@@ -91,11 +92,12 @@ public partial class App : Application
         menu.Items.Add(new MenuFlyoutSeparator());
         var autoStart = new ToggleMenuFlyoutItem { Text = resources.GetString("AutoStart"), IsChecked = AutoStart.IsEnabled };
         // The native menu does not flip IsChecked itself; read the registry back so the tick shows what is stored
-        autoStart.Command = new RelayCommand(() =>
+        // A policy or security tool may lock the Run key; the tick then stays as it was
+        autoStart.Command = new RelayCommand(() => Guard("AutoStart", () =>
         {
             AutoStart.Set(!AutoStart.IsEnabled);
             autoStart.IsChecked = AutoStart.IsEnabled;
-        });
+        }));
         menu.Items.Add(autoStart);
 
         var showPercent = new ToggleMenuFlyoutItem { Text = resources.GetString("ShowPercent"), IsChecked = _settings.ShowPercent };
@@ -388,20 +390,28 @@ public partial class App : Application
         }
     }
 
+    // Each step on its own: one that fails must neither skip the rest nor keep the process alive
+    // without its instance key, where the next start would open a second instance beside it
     private void Shutdown()
     {
         _shuttingDown = true;
-        _trayIconRetry?.Stop();
+        try
+        {
+            _trayIconRetry?.Stop();
 
-        // A start during shutdown would otherwise be redirected to this dying instance and get lost
-        AppInstance.GetCurrent().UnregisterKey();
-        _watcher?.Dispose();
-        _toasts?.Dispose();
-        _updates?.Dispose();
-        _taskbarElement?.Dispose();
-        _deviceIcons?.Dispose();
-        _trayIcon?.Dispose();
-        _flyout?.Dispose();
-        Exit();
+            // A start during shutdown would otherwise be redirected to this dying instance and get lost
+            Guard("Shutdown", () => AppInstance.GetCurrent().UnregisterKey());
+            Guard("Shutdown", () => _watcher?.Dispose());
+            Guard("Shutdown", () => _toasts?.Dispose());
+            Guard("Shutdown", () => _updates?.Dispose());
+            Guard("Shutdown", () => _taskbarElement?.Dispose());
+            Guard("Shutdown", () => _deviceIcons?.Dispose());
+            Guard("Shutdown", () => _trayIcon?.Dispose());
+            Guard("Shutdown", () => _flyout?.Dispose());
+        }
+        finally
+        {
+            Exit();
+        }
     }
 }

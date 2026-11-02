@@ -24,6 +24,9 @@ public sealed partial class FlyoutWindow : Window, IDisposable
     // A tray click first deactivates (hides) the open flyout; without this the same click reopens it
     private const long ReopenGuardMs = 300;
 
+    // Far outside every monitor, as Windows itself places minimized windows
+    private const int OffScreen = -32000;
+
     private static readonly ResourceLoader Resources = new();
 
     private DisplayArea? _displayArea;
@@ -77,6 +80,12 @@ public sealed partial class FlyoutWindow : Window, IDisposable
 
     public void SetDevices(IReadOnlyList<DeviceItem> devices)
     {
+        // Most refreshes change nothing; rebuilding the rows anyway would take the keyboard focus off them
+        if (DeviceList.ItemsSource is IReadOnlyList<DeviceItem> shown && shown.SequenceEqual(devices))
+        {
+            return;
+        }
+
         // Rebuilding the rows would close the open list under the user
         if (IsThresholdListOpen())
         {
@@ -145,16 +154,23 @@ public sealed partial class FlyoutWindow : Window, IDisposable
         _scale = GetScale(monitor);
         _hasTaskbar = HasTaskbar(monitor);
 
-        Place();
+        // The first time the content cannot be measured before the window shows; it opens off screen
+        // then, and Root.Loaded moves it into place, instead of flashing at the default position
+        if (!Place())
+        {
+            AppWindow.Move(new PointInt32(OffScreen, OffScreen));
+        }
+
         AppWindow.Show();
         Activate();
     }
 
-    private void Place()
+    // False when the content does not measure yet
+    private bool Place()
     {
         if (_displayArea is null)
         {
-            return;
+            return false;
         }
 
         // Measured in effective pixels, so a larger Windows text size grows the flyout with it
@@ -162,7 +178,7 @@ public sealed partial class FlyoutWindow : Window, IDisposable
         var heightEpx = Root.DesiredSize.Height;
         if (heightEpx <= 0)
         {
-            return;
+            return false;
         }
 
         var bounds = FlyoutPlacement.Calculate(
@@ -177,6 +193,7 @@ public sealed partial class FlyoutWindow : Window, IDisposable
         // move first, then set the final size so that rescale cannot distort it
         AppWindow.Move(new PointInt32(bounds.X, bounds.Y));
         AppWindow.MoveAndResize(new RectInt32(bounds.X, bounds.Y, bounds.Width, bounds.Height));
+        return true;
     }
 
     private void HideFlyout()

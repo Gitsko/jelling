@@ -11,7 +11,7 @@ public static class AutoStart
     private const string ValueName = "Jelling";
 
     // Quoted, because the install path may contain spaces
-    private static string Command => $"\"{Environment.ProcessPath}\"";
+    private static string? Command => Environment.ProcessPath is { } path ? $"\"{path}\"" : null;
 
     // Only counts when the entry points at this exe; a moved or old build would not start
     public static bool IsEnabled
@@ -29,7 +29,8 @@ public static class AutoStart
         using var key = Registry.CurrentUser.CreateSubKey(RunKeyPath);
         if (enabled)
         {
-            key.SetValue(ValueName, Command);
+            // An empty entry would start nothing and still show the menu item as ticked
+            key.SetValue(ValueName, Command ?? throw new InvalidOperationException("The path of the running exe is unknown"));
         }
         else
         {
