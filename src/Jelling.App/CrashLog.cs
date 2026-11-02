@@ -51,11 +51,20 @@ public static class CrashLog
         return new PathRedactor([profile, profile.Length > 0 ? ShortPath(profile) : ""], "%USERPROFILE%");
     }
 
+    // Runs in the static initializer: an exception there would fail every later Write for good, so a
+    // failed native call (missing export, marshalling) only costs the short form
     private static string ShortPath(string path)
     {
-        var buffer = new StringBuilder(260);
-        var length = GetShortPathName(path, buffer, buffer.Capacity);
-        return length > 0 && length < buffer.Capacity ? buffer.ToString(0, (int)length) : "";
+        try
+        {
+            var buffer = new StringBuilder(260);
+            var length = GetShortPathName(path, buffer, buffer.Capacity);
+            return length > 0 && length < buffer.Capacity ? buffer.ToString(0, (int)length) : "";
+        }
+        catch (Exception)
+        {
+            return "";
+        }
     }
 
     [DllImport("kernel32.dll", EntryPoint = "GetShortPathNameW", CharSet = CharSet.Unicode)]

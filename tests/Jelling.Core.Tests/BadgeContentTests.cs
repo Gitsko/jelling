@@ -4,6 +4,7 @@ public class BadgeContentTests
 {
     [Theory]
     [InlineData(true, false, true, true)]
+    [InlineData(true, true, false, true)]
     [InlineData(false, false, true, false)]
     [InlineData(false, true, true, false)]
     [InlineData(false, true, false, true)]

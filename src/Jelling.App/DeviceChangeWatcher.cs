@@ -1,3 +1,4 @@
+using Jelling.Core;
 using Windows.Devices.Enumeration;
 
 namespace Jelling.App;
@@ -9,13 +10,16 @@ namespace Jelling.App;
 /// </summary>
 public sealed class DeviceChangeWatcher : IDisposable
 {
-    // Not at once: a watcher that aborts again right away would otherwise restart in a tight loop.
-    // A failed start waits twice as long before the next try, up to the maximum
+    // Not at once: a watcher that aborts again right away would otherwise restart in a tight loop, each
+    // time enumerating every device container and refreshing the list
     private static readonly TimeSpan RestartDelay = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan MaxRestartDelay = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan StableRun = TimeSpan.FromMinutes(10);
 
     private readonly DeviceWatcher _nodes;
     private readonly DeviceWatcher _containers;
+    private readonly RestartBackoff _nodesBackoff = new(RestartDelay, MaxRestartDelay, StableRun);
+    private readonly RestartBackoff _containersBackoff = new(RestartDelay, MaxRestartDelay, StableRun);
 
     // The containers of Bluetooth nodes; every other container (monitors, USB hubs, ...) changes nothing shown
     private readonly HashSet<Guid> _bluetoothContainers = [];
@@ -44,14 +48,14 @@ public sealed class DeviceChangeWatcher : IDisposable
         _nodes.Updated += (_, update) => { if (IsBluetooth(update.Id)) Raise(); };
         _nodes.Removed += (_, update) => { if (IsBluetooth(update.Id)) Raise(); };
         _nodes.EnumerationCompleted += (_, _) => OnEnumerationCompleted(() => _nodesEnumerated = true);
-        _nodes.Stopped += (_, _) => OnStopped(_nodes, () => _nodesEnumerated = false);
+        _nodes.Stopped += (_, _) => OnStopped(_nodes, _nodesBackoff, () => _nodesEnumerated = false);
 
         // A new container may get its Bluetooth nodes only afterwards, so Added is not filtered
         _containers.Added += (_, _) => { if (_containersEnumerated) Raise(); };
         _containers.Updated += (_, update) => { if (IsBluetoothContainer(update.Id)) Raise(); };
         _containers.Removed += (_, update) => { if (IsBluetoothContainer(update.Id)) Raise(); };
         _containers.EnumerationCompleted += (_, _) => OnEnumerationCompleted(() => _containersEnumerated = true);
-        _containers.Stopped += (_, _) => OnStopped(_containers, () => _containersEnumerated = false);
+        _containers.Stopped += (_, _) => OnStopped(_containers, _containersBackoff, () => _containersEnumerated = false);
     }
 
     public void Start()
@@ -133,7 +137,7 @@ public sealed class DeviceChangeWatcher : IDisposable
     // Windows aborts a watcher e.g. when its service restarts; it does not start again by itself.
     // Stopped also follows Dispose's Stop, which must stay stopped
     // resetEnumerated: the restart enumerates everything as Added again
-    private void OnStopped(DeviceWatcher watcher, Action resetEnumerated)
+    private void OnStopped(DeviceWatcher watcher, RestartBackoff backoff, Action resetEnumerated)
     {
         if (_disposed || watcher.Status != DeviceWatcherStatus.Aborted)
         {
@@ -141,13 +145,19 @@ public sealed class DeviceChangeWatcher : IDisposable
         }
 
         resetEnumerated();
-        _ = RestartAsync(watcher);
+        TimeSpan delay;
+        lock (_gate)
+        {
+            delay = backoff.FirstDelay(Environment.TickCount64);
+        }
+
+        _ = RestartAsync(watcher, backoff, delay);
     }
 
     // Whatever changed while the watcher was down is reported once it has enumerated again
-    private async Task RestartAsync(DeviceWatcher watcher)
+    private async Task RestartAsync(DeviceWatcher watcher, RestartBackoff backoff, TimeSpan firstDelay)
     {
-        for (var delay = RestartDelay; ; delay = Min(delay * 2, MaxRestartDelay))
+        for (var delay = firstDelay; ; delay = backoff.Longer(delay))
         {
             await Task.Delay(delay);
             lock (_gate)
@@ -160,6 +170,7 @@ public sealed class DeviceChangeWatcher : IDisposable
                 try
                 {
                     watcher.Start();
+                    backoff.Started(delay, Environment.TickCount64);
                     return;
                 }
                 catch (Exception exception)
@@ -170,8 +181,6 @@ public sealed class DeviceChangeWatcher : IDisposable
             }
         }
     }
-
-    private static TimeSpan Min(TimeSpan a, TimeSpan b) => a < b ? a : b;
 
     // Classic devices enumerate under BTHENUM, BLE devices under BTHLE
     private static bool IsBluetooth(string instanceId) =>

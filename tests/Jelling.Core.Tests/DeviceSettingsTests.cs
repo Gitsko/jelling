@@ -178,6 +178,64 @@ public sealed class DeviceSettingsTests : IDisposable
     }
 
     [Fact]
+    public void FileLockedAtStartIsReadBeforeSettingAThreshold()
+    {
+        new DeviceSettings(SettingsPath).TogglePin(Headset);
+        DeviceSettings settings;
+        using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            settings = new DeviceSettings(SettingsPath);
+        }
+
+        settings.SetLowThreshold(Mouse, 40);
+
+        var reloaded = new DeviceSettings(SettingsPath);
+        Assert.True(reloaded.IsPinned(Headset));
+        Assert.Equal(40, reloaded.LowThreshold(Mouse));
+    }
+
+    [Fact]
+    public void FileLockedAtStartIsReadBeforeHidingThePercent()
+    {
+        new DeviceSettings(SettingsPath).TogglePin(Headset);
+        DeviceSettings settings;
+        using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            settings = new DeviceSettings(SettingsPath);
+        }
+
+        settings.SetShowPercent(false);
+
+        var reloaded = new DeviceSettings(SettingsPath);
+        Assert.True(reloaded.IsPinned(Headset));
+        Assert.False(reloaded.ShowPercent);
+    }
+
+    [Fact]
+    public void CorruptFileThatCannotBeKeptAsideReadsAsDefaults()
+    {
+        Directory.CreateDirectory(_folder);
+        File.WriteAllText(SettingsPath, "{ not json");
+        var keptAside = Path.Combine(_folder, "settings.invalid.json");
+        File.WriteAllText(keptAside, "older");
+
+        using (new FileStream(keptAside, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            Assert.False(new DeviceSettings(SettingsPath).IsPinned(Headset));
+        }
+
+        Assert.Equal("older", File.ReadAllText(keptAside));
+    }
+
+    [Fact]
+    public void SaveLeavesNoFileBehind()
+    {
+        new DeviceSettings(SettingsPath).TogglePin(Headset);
+
+        Assert.Equal([SettingsPath], Directory.GetFiles(_folder));
+    }
+
+    [Fact]
     public void NullLiteralMeansDefaults()
     {
         Directory.CreateDirectory(_folder);
