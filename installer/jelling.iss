@@ -101,8 +101,9 @@ Root: HKCU; Subkey: "{#RunKey}"; ValueType: none; ValueName: "Jelling"; Flags: u
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,Jelling}"; Flags: nowait postinstall skipifsilent
-; A silent update closes the app too; without this it would stay off until the next sign-in
-Filename: "{app}\{#AppExe}"; Flags: nowait; Check: WizardSilent and IsUpgrade
+; A silent install closes a running copy too, an unzipped one included; without this it would stay
+; off until the next sign-in
+Filename: "{app}\{#AppExe}"; Flags: nowait; Check: WizardSilent
 
 [UninstallRun]
 ; Its files cannot be removed while it runs
