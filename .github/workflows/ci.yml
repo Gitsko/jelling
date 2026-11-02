@@ -28,6 +28,22 @@ jobs:
       # The release ships ARM64 too; a break there should show up before tagging
       - name: Build ARM64
         run: dotnet build src/Jelling.App/Jelling.App.csproj -c Release -r win-arm64 -p:Platform=ARM64
+      # Built on every change, so the installer can be tried from the run's artifacts before a release
+      - name: Build installer
+        shell: pwsh
+        run: |
+          dotnet publish src/Jelling.App/Jelling.App.csproj -c Release -r win-x64 -p:Platform=x64 -o publish/win-x64
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $iscc = ./tools/Install-InnoSetup.ps1 -Destination (Join-Path $env:RUNNER_TEMP innosetup)
+          & $iscc /DArch=x64 "/DPublishDir=$((Resolve-Path publish/win-x64).Path)" "/O$($PWD.ProviderPath)" installer/jelling.iss
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          # The exe itself rather than a ZIP around it; named after the file
+          archive: false
+          path: Jelling-Setup-win-x64.exe
+          if-no-files-found: error
+          retention-days: 14
 
   release:
     needs: test
@@ -73,24 +89,37 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
-      - name: Publish self-contained ZIPs
+      - name: Build ZIPs and setups
         shell: pwsh
         run: |
           $version = $env:TAG.TrimStart('v')
+          $iscc = ./tools/Install-InnoSetup.ps1 -Destination (Join-Path $env:RUNNER_TEMP innosetup)
           foreach ($platform in 'x64', 'ARM64') {
-            $rid = "win-$($platform.ToLower())"
+            $arch = $platform.ToLower()
+            $rid = "win-$arch"
             # WinUI needs the platform as well as the runtime; -r alone falls back to x64
             dotnet publish src/Jelling.App/Jelling.App.csproj -c Release -r $rid -p:Platform=$platform -p:Version=$version -o "publish/$rid"
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
             # No version in the name, so releases/latest/download/Jelling-win-x64.zip always points to the newest
             Compress-Archive "publish/$rid/*" "Jelling-$rid.zip"
+            # Same output as the ZIP; relative paths would count from the installer folder
+            & $iscc "/DAppVersion=$version" "/DArch=$arch" "/DPublishDir=$((Resolve-Path "publish/$rid").Path)" "/O$($PWD.ProviderPath)" installer/jelling.iss
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
           }
           # sha256sum -c format with LF line ends, so the download can be checked on any system
-          $sums = Get-ChildItem Jelling-*.zip | ForEach-Object { "$((Get-FileHash $_ -Algorithm SHA256).Hash)  $($_.Name)`n" }
+          # A ZIP and a setup per platform; a missing one would otherwise just be left out of the release
+          $files = Get-ChildItem Jelling-*.zip, Jelling-Setup-*.exe
+          if ($files.Count -ne 4) {
+            Write-Error "Expected 4 release files, found $($files.Count): $($files.Name -join ', ')"
+            exit 1
+          }
+          $sums = $files | ForEach-Object { "$((Get-FileHash $_ -Algorithm SHA256).Hash)  $($_.Name)`n" }
           [IO.File]::WriteAllText("$($PWD.ProviderPath)/SHA256SUMS.txt", -join $sums)
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: Jelling-*.zip
+          subject-path: |
+            Jelling-*.zip
+            Jelling-Setup-*.exe
       - name: Create release
         shell: pwsh
         env:
@@ -105,7 +134,7 @@ jobs:
           }
           # Replacing is safe here: the check above leaves only a draft or a release without files, so
           # nobody can have downloaded them; a re-run after a failed upload completes it
-          gh release upload $env:TAG (Get-ChildItem Jelling-*.zip) SHA256SUMS.txt --clobber
+          gh release upload $env:TAG (Get-ChildItem Jelling-*.zip, Jelling-Setup-*.exe) SHA256SUMS.txt --clobber
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           gh release edit $env:TAG --draft=false
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
