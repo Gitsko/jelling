@@ -19,11 +19,12 @@ namespace Jelling.App;
 public sealed partial class TaskbarElement : IDisposable
 {
     private const string ClassName = "JellingTaskbarElement";
-    private const int MaxFailedMeasurements = 3;
 
     private readonly Action _onClick;
     private readonly DispatcherQueueTimer _timer;
-    private readonly TaskButtons _taskButtons = new();
+    private readonly TaskButtonsMonitor _taskButtons = new();
+    private readonly uint _shellHookMessage = RegisterWindowMessage("SHELLHOOK");
+    private readonly uint _taskbarCreatedMessage = RegisterWindowMessage("TaskbarCreated");
 
     // Held in a field: Windows calls it for as long as the class is registered
     private readonly WndProc _wndProc;
@@ -41,14 +42,8 @@ public sealed partial class TaskbarElement : IDisposable
     private string? _lastError;
     private uint _lastTaskbarDpi;
 
-    // Measured off this thread; null while unknown: before any measurement succeeded, without a taskbar,
-    // or after several failures in a row
-    private int? _taskButtonsRight;
-    private bool _measuring;
-    private bool _measuredOnce;
-    private int _failedMeasurements;
-    private string? _lastMeasureError;
-    private bool _reportedNoButtons;
+    // Hidden, top level: told by the shell when windows come and go, and when Explorer recreates the taskbar
+    private IntPtr _listener;
     private bool _disposed;
 
     // True when no tray icons are needed: the element shows every badge, or there is none to show
@@ -81,11 +76,25 @@ public sealed partial class TaskbarElement : IDisposable
         var controls = new InitCommonControlsExInfo { Size = (uint)Marshal.SizeOf<InitCommonControlsExInfo>(), Classes = IccBarClasses };
         InitCommonControlsEx(ref controls);
 
-        // Explorer moves the notification area when icons come and go, adds app buttons for new windows and
-        // recreates the taskbar after a restart. Each tick measures the buttons; the placement follows the result
+        // Explorer moves the notification area when icons come and go and recreates the taskbar after a restart.
+        // Following it takes only window lookups, cheap enough for every second; the app buttons are measured
+        // through UI Automation, which waits on Explorer, so only when they may have changed
         _timer = DispatcherQueue.GetForCurrentThread().CreateTimer();
         _timer.Interval = TimeSpan.FromSeconds(1);
-        _timer.Tick += (_, _) => _ = MeasureTaskButtonsAsync();
+        _timer.Tick += (_, _) => Recheck();
+        _taskButtons.Measured += (_, _) =>
+        {
+            if (!_disposed)
+            {
+                Recheck();
+            }
+        };
+
+        _listener = CreateWindowEx(WsExToolWindow, ClassName, "", WsPopup, 0, 0, 0, 0, IntPtr.Zero, IntPtr.Zero, GetModuleHandle(null), IntPtr.Zero);
+        if (_listener != IntPtr.Zero)
+        {
+            RegisterShellHookWindow(_listener);
+        }
     }
 
     /// <summary>Shows the badges in the taskbar, replacing what it showed before; an empty list removes the element.</summary>
@@ -104,17 +113,18 @@ public sealed partial class TaskbarElement : IDisposable
         if (_badges.Count == 0)
         {
             _timer.Stop();
+            _taskButtons.Stop();
         }
         else
         {
             _timer.Start();
-            _ = MeasureTaskButtonsAsync();
+            _taskButtons.Start();
         }
 
         // Until the first measurement lands, tray icons would appear only to go again at once when there is room.
         // The Recheck after it raises AvailabilityChanged if there is none. Only the first: a later measurement
         // that keeps failing would otherwise hide the badges and start the next one on every Recheck
-        if (_badges.Count > 0 && !_measuredOnce && _measuring)
+        if (_badges.Count > 0 && !_taskButtons.HasMeasured)
         {
             _coversBadges = true;
             return true;
@@ -128,6 +138,14 @@ public sealed partial class TaskbarElement : IDisposable
     {
         _disposed = true;
         _timer.Stop();
+        _taskButtons.Dispose();
+        if (_listener != IntPtr.Zero)
+        {
+            DeregisterShellHookWindow(_listener);
+            DestroyWindow(_listener);
+            _listener = IntPtr.Zero;
+        }
+
         DestroyElement();
         ReleaseStrip();
         UnregisterClass(ClassName, GetModuleHandle(null));
@@ -143,61 +161,6 @@ public sealed partial class TaskbarElement : IDisposable
         if (_coversBadges != covered || (rescaled && !_coversBadges))
         {
             AvailabilityChanged?.Invoke(this, EventArgs.Empty);
-        }
-    }
-
-    // One measurement at a time: a busy Explorer must not pile them up
-    private async Task MeasureTaskButtonsAsync()
-    {
-        if (_measuring)
-        {
-            return;
-        }
-
-        _measuring = true;
-        try
-        {
-            _taskButtonsRight = await Task.Run(_taskButtons.RightEdge);
-            _failedMeasurements = 0;
-            _lastMeasureError = null;
-            ReportNoButtons();
-        }
-        catch (Exception exception)
-        {
-            // E.g. Explorer was busy; the last extent stays for a few ticks. Kept for longer, it would miss
-            // buttons opened since, so after that the tray icons take over until a measurement succeeds
-            if (++_failedMeasurements >= MaxFailedMeasurements)
-            {
-                _taskButtonsRight = null;
-            }
-
-            var error = $"{exception.GetType()}: {exception.Message}";
-            if (error != _lastMeasureError)
-            {
-                CrashLog.Write("TaskButtons", exception);
-                _lastMeasureError = error;
-            }
-        }
-        finally
-        {
-            _measuring = false;
-            _measuredOnce = true;
-        }
-
-        if (!_disposed)
-        {
-            Recheck();
-        }
-    }
-
-    // No button at all is rare, as pinned apps have one too. Logged once, in case a Windows update renamed the
-    // button class and the element covers the buttons again
-    private void ReportNoButtons()
-    {
-        if (_taskButtonsRight == 0 && !_reportedNoButtons)
-        {
-            CrashLog.Write("TaskButtons", new InvalidOperationException("No taskbar app buttons found"));
-            _reportedNoButtons = true;
         }
     }
 
@@ -276,7 +239,7 @@ public sealed partial class TaskbarElement : IDisposable
             _stripRenderedFor = (dpi, notificationBounds.Height);
         }
 
-        var bounds = TaskbarPlacement.Calculate(BoundsOf(taskbar), notificationBounds, BoundsOf(taskList), _taskButtonsRight, _strip.Width);
+        var bounds = TaskbarPlacement.Calculate(BoundsOf(taskbar), notificationBounds, BoundsOf(taskList), _taskButtons.RightEdge, _strip.Width);
         if (bounds is not { } placed)
         {
             return false;
@@ -434,6 +397,11 @@ public sealed partial class TaskbarElement : IDisposable
 
     private IntPtr OnMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam)
     {
+        if (window == _listener && _listener != IntPtr.Zero)
+        {
+            return OnListenerMessage(window, message, wParam, lParam);
+        }
+
         switch (message)
         {
             // Activating the taskbar would first close an open flyout, and the click would then reopen it
@@ -476,6 +444,31 @@ public sealed partial class TaskbarElement : IDisposable
             default:
                 return DefWindowProc(window, message, wParam, lParam);
         }
+    }
+
+    // A window with a taskbar button appeared, went or changed its title, which can resize the buttons
+    private IntPtr OnListenerMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam)
+    {
+        if (message == _shellHookMessage)
+        {
+            if ((wParam.ToInt64() & 0x7FFF) is HShellWindowCreated or HShellWindowDestroyed or HShellRedraw or HShellWindowReplaced or HShellMonitorChanged)
+            {
+                _taskButtons.Invalidate();
+            }
+
+            return IntPtr.Zero;
+        }
+
+        // Shell hooks registered with the old Explorer may not carry over to the new one
+        if (message == _taskbarCreatedMessage)
+        {
+            DeregisterShellHookWindow(window);
+            RegisterShellHookWindow(window);
+            _taskButtons.Invalidate();
+            return IntPtr.Zero;
+        }
+
+        return DefWindowProc(window, message, wParam, lParam);
     }
 
     private bool IsOnStrip(IntPtr lParam)

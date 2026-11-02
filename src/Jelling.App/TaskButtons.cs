@@ -20,6 +20,7 @@ internal sealed class TaskButtons
     // UIA waits 20 s for a hung Explorer by default; the tray icons should not wait that long to take over
     private const uint TimeoutMilliseconds = 2000;
 
+    // Created once and kept for the life of the process, like the taskbar element that uses it
     private (IUIAutomation Automation, IUIAutomationCondition IsButton, IUIAutomationCacheRequest Bounds)? _uia;
 
     /// <returns>

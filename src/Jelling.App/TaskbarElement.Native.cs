@@ -36,6 +36,12 @@ public sealed partial class TaskbarElement
     private const uint UlwAlpha = 0x02;
     private const byte AcSrcAlpha = 0x01;
     private const int IdcArrow = 32512;
+    private const uint WsExToolWindow = 0x00000080;
+    private const int HShellWindowCreated = 1;
+    private const int HShellWindowDestroyed = 2;
+    private const int HShellRedraw = 6;
+    private const int HShellWindowReplaced = 13;
+    private const int HShellMonitorChanged = 16;
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct WndClassEx
@@ -179,6 +185,15 @@ public sealed partial class TaskbarElement
 
     [DllImport("comctl32.dll")]
     private static extern bool InitCommonControlsEx(ref InitCommonControlsExInfo info);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern uint RegisterWindowMessage(string name);
+
+    [DllImport("user32.dll")]
+    private static extern bool RegisterShellHookWindow(IntPtr window);
+
+    [DllImport("user32.dll")]
+    private static extern bool DeregisterShellHookWindow(IntPtr window);
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     private static extern IntPtr GetModuleHandle(string? moduleName);
