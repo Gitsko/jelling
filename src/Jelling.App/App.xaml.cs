@@ -152,10 +152,8 @@ public partial class App : Application
 
         _theme = theme;
 
-        // TaskbarIcon does not own the image it shows
-        var previous = _trayIcon.Icon;
+        // TaskbarIcon disposes the image it replaces
         _trayIcon.Icon = TrayIconRenderer.Render(TrayGlyph, theme.Tray);
-        previous?.Dispose();
 
         // Device icons re-render because their look includes the color; the flyout rows follow
         // the theme by themselves, and rebuilding them would close an open threshold list
