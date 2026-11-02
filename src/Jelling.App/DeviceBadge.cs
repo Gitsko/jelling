@@ -23,20 +23,19 @@ public sealed record DeviceBadge(Guid Id, string Glyph, int? Percent, Color Glyp
 
     private static DeviceBadge For(BatteryDevice device, DeviceSettings settings, DeviceColors colors)
     {
-        var glyph = DeviceItem.GlyphFor(device.Kind);
-        if (device.BatteryPercent is not { } percent)
-        {
-            return new DeviceBadge(device.Id, glyph, null, colors.Normal, colors.Normal, BadgeContent.ToolTip(device.Name, null));
-        }
-
-        var isLow = BatteryLevel.IsLow(percent, settings.LowThreshold(device.Id));
-        var levelColor = isLow ? colors.Low : colors.Normal;
-        var level = DeviceItem.FormatPercent(percent);
-        var toolTip = BadgeContent.ToolTip(device.Name, isLow ? $"{level} ({DeviceItem.LowLevelText})" : level);
-
         // High contrast has no warning color (Low equals Normal); the tooltip names a low level either way
-        return BadgeContent.ShowsNumber(settings.ShowPercent, isLow, hasLowColor: colors.Low != colors.Normal)
-            ? new DeviceBadge(device.Id, glyph, percent, colors.Normal, levelColor, toolTip)
-            : new DeviceBadge(device.Id, glyph, null, levelColor, levelColor, toolTip);
+        var look = BadgeContent.For(
+            device.BatteryPercent, settings.LowThreshold(device.Id), settings.ShowPercent, hasLowColor: colors.Low != colors.Normal);
+
+        var level = device.BatteryPercent is { } percent ? DeviceText.FormatPercent(percent) : null;
+        var toolTip = BadgeContent.ToolTip(device.Name, look.IsLow ? $"{level} ({DeviceText.LowLevelText})" : level);
+
+        return new DeviceBadge(
+            device.Id,
+            DeviceText.GlyphFor(device.Kind),
+            look.ShownPercent,
+            look.GlyphIsLow ? colors.Low : colors.Normal,
+            look.IsLow ? colors.Low : colors.Normal,
+            toolTip);
     }
 }

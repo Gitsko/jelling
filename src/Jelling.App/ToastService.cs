@@ -1,5 +1,4 @@
 using Jelling.Core;
-using Microsoft.Windows.ApplicationModel.Resources;
 using Microsoft.Windows.AppNotifications;
 using Microsoft.Windows.AppNotifications.Builder;
 
@@ -11,7 +10,6 @@ namespace Jelling.App;
 public sealed class ToastService : IDisposable
 {
     private const string Group = "LowBattery";
-    private static readonly ResourceLoader Resources = new();
 
     // Long enough to be seen after a meeting, short enough not to outlive the next charge
     private static readonly TimeSpan Lifetime = TimeSpan.FromHours(12);
@@ -47,8 +45,8 @@ public sealed class ToastService : IDisposable
         }
 
         var notification = new AppNotificationBuilder()
-            .AddText(string.Format(Resources.GetString("LowBatteryTitle"), device.Name))
-            .AddText(string.Format(Resources.GetString("LowBatteryText"), DeviceItem.FormatPercent(percent)))
+            .AddText(string.Format(DeviceText.Resources.GetString("LowBatteryTitle"), device.Name))
+            .AddText(string.Format(DeviceText.Resources.GetString("LowBatteryText"), DeviceText.FormatPercent(percent)))
             // One toast per device: a later warning replaces the earlier one instead of stacking
             .SetTag(device.Id.ToString("N"))
             .SetGroup(Group)

@@ -1,6 +1,5 @@
 using Jelling.Core;
 using Microsoft.UI.Xaml;
-using Microsoft.Windows.ApplicationModel.Resources;
 
 namespace Jelling.App;
 
@@ -14,25 +13,24 @@ public sealed record DeviceItem(
     string KindGlyph,
     string BatteryGlyph,
     string BatteryText,
+    bool HasLevel,
     bool IsLow,
     string PinGlyph,
     string PinLabel,
     int LowThresholdIndex)
 {
-    private static readonly ResourceLoader Resources = new();
-
     private static readonly IReadOnlyList<string> LowThresholdLabels = BatteryLevel.LowThresholds
-        .Select(threshold => threshold == 0 ? Resources.GetString("LowThresholdOff") : FormatPercent(threshold))
+        .Select(threshold => threshold == 0 ? DeviceText.Resources.GetString("LowThresholdOff") : DeviceText.FormatPercent(threshold))
         .ToList();
 
-    private static readonly string LowThresholdToolTipText = Resources.GetString("LowThresholdToolTip");
+    private static readonly string LowThresholdToolTipText = DeviceText.Resources.GetString("LowThresholdToolTip");
 
     // The same for every row; x:Bind inside the item template only reaches instance members
     public IReadOnlyList<string> LowThresholdOptions => LowThresholdLabels;
 
     public string LowThresholdToolTip => LowThresholdToolTipText;
 
-    public string LowThresholdAutomationName => $"{Name}: {Resources.GetString("LowThreshold")}";
+    public string LowThresholdAutomationName => $"{Name}: {DeviceText.Resources.GetString("LowThreshold")}";
 
     // Only what describes the device fades when it is disconnected; its settings stay usable
     public double Opacity => IsConnected ? 1.0 : 0.5;
@@ -46,13 +44,13 @@ public sealed record DeviceItem(
     public string PinAutomationName => $"{Name}: {PinLabel}";
 
     // Narrator reads list items through ToString; the record default would dump every field.
-    // It reads "–" as nothing, and the faded row of a disconnected device says nothing to it either
+    // It reads the "–" of a missing level as nothing, and the faded row of a disconnected device says nothing to it either
     public override string ToString()
     {
-        var status = Resources.GetString(IsConnected ? "Connected" : "Disconnected");
-        var battery = BatteryText == "–" ? Resources.GetString("BatteryUnknown") : BatteryText;
+        var status = DeviceText.Resources.GetString(IsConnected ? "Connected" : "Disconnected");
+        var battery = HasLevel ? BatteryText : DeviceText.Resources.GetString("BatteryUnknown");
         return IsLow
-            ? $"{Name}, {status}, {battery}, {LowLevelText}"
+            ? $"{Name}, {status}, {battery}, {DeviceText.LowLevelText}"
             : $"{Name}, {status}, {battery}";
     }
 
@@ -60,38 +58,20 @@ public sealed record DeviceItem(
     public static DeviceItem From(BatteryDevice device, bool isPinned, int lowThreshold)
     {
         var (batteryGlyph, batteryText) = device.BatteryPercent is { } percent
-            ? (GlyphForStep(BatteryLevel.ToStep(percent)), FormatPercent(percent))
+            ? (DeviceText.GlyphForStep(BatteryLevel.ToStep(percent)), DeviceText.FormatPercent(percent))
             : ("", "–");
 
         return new DeviceItem(
             device.Id,
             device.Name,
             device.IsConnected,
-            GlyphFor(device.Kind),
+            DeviceText.GlyphFor(device.Kind),
             batteryGlyph,
             batteryText,
+            device.BatteryPercent is not null,
             device.BatteryPercent is { } level && BatteryLevel.IsLow(level, lowThreshold),
-            isPinned ? "" : "",
-            Resources.GetString(isPinned ? "Unpin" : "Pin"),
+            isPinned ? "\ue77a" : "\ue718",
+            DeviceText.Resources.GetString(isPinned ? "Unpin" : "Pin"),
             BatteryLevel.LowThresholds.IndexOf(lowThreshold));
     }
-
-    // German puts a space before the percent sign, English does not
-    public static string FormatPercent(int percent) => string.Format(Resources.GetString("PercentFormat"), percent);
-
-    public static string LowLevelText => Resources.GetString("LowLevel");
-
-    public static string GlyphFor(DeviceKind kind) => kind switch
-    {
-        DeviceKind.Headset => "",
-        DeviceKind.Mouse => "",
-        DeviceKind.Keyboard => "",
-        DeviceKind.GameController => "",
-        DeviceKind.Speaker => "",
-        _ => "",
-    };
-
-    // Battery0-Battery9 are E850-E859, Battery10 (full) sits apart at E83F
-    private static string GlyphForStep(int step) =>
-        step == 10 ? "" : ((char)(0xE850 + step)).ToString();
 }

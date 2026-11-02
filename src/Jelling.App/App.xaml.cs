@@ -1,10 +1,7 @@
 using Jelling.Core;
 using H.NotifyIcon;
 using Microsoft.UI.Dispatching;
-using Microsoft.Win32;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.Windows.ApplicationModel.Resources;
 using Microsoft.Windows.AppLifecycle;
 using Windows.UI.ViewManagement;
 
@@ -34,8 +31,7 @@ public partial class App : Application
     private ToastService? _toasts;
     private UpdateChecker? _updates;
     private IReadOnlyList<BatteryDevice> _devices = [];
-    private System.Drawing.Color _trayColor;
-    private DeviceColors _deviceColors = null!;
+    private TaskbarTheme _theme = null!;
     private DispatcherQueueTimer? _trayIconRetry;
     private bool _trayIconFailureLogged;
 
@@ -75,45 +71,20 @@ public partial class App : Application
         _toasts = new ToastService(() => dispatcher.TryEnqueue(OpenFlyout));
         _updates = new UpdateChecker();
         _updates.UpdateAvailable += (_, latest) => _flyout.ShowUpdate(latest);
-        _trayColor = TrayColor();
-        _deviceColors = CurrentDeviceColors();
+        _theme = TaskbarTheme.Current(_uiSettings);
         _ = RefreshAsync();
 
         _watcher = new DeviceChangeWatcher();
         _watcher.Changed += (_, _) => dispatcher.TryEnqueue(() => _ = RefreshAsync());
         _watcher.Start();
 
-        var resources = new ResourceLoader();
-        var title = resources.GetString("FlyoutHeader/Text");
-
-        // PopupMenu mode turns the flyout into a native menu that only runs Command, not Click
-        var menu = new MenuFlyout();
-        menu.Items.Add(new MenuFlyoutItem { Text = title, IsEnabled = false });
-        menu.Items.Add(new MenuFlyoutSeparator());
-        var autoStart = new ToggleMenuFlyoutItem { Text = resources.GetString("AutoStart"), IsChecked = AutoStart.IsEnabled };
-        // The native menu does not flip IsChecked itself; read the registry back so the tick shows what is stored
-        // A policy or security tool may lock the Run key; the tick then stays as it was
-        autoStart.Command = new RelayCommand(() => Guard("AutoStart", () =>
-        {
-            AutoStart.Set(!AutoStart.IsEnabled);
-            autoStart.IsChecked = AutoStart.IsEnabled;
-        }));
-        menu.Items.Add(autoStart);
-
-        var showPercent = new ToggleMenuFlyoutItem { Text = resources.GetString("ShowPercent"), IsChecked = _settings.ShowPercent };
-        showPercent.Command = new RelayCommand(() =>
-        {
-            SetShowPercent(!_settings.ShowPercent);
-            showPercent.IsChecked = _settings.ShowPercent;
-        });
-        menu.Items.Add(showPercent);
-        menu.Items.Add(new MenuFlyoutSeparator());
-        menu.Items.Add(new MenuFlyoutItem { Text = resources.GetString("Exit"), Command = new RelayCommand(Shutdown) });
+        var title = DeviceText.Resources.GetString("FlyoutHeader/Text");
+        var menu = TrayMenu.Create(title, () => _settings.ShowPercent, SetShowPercent, Shutdown, Guard);
 
         _trayIcon = new TaskbarIcon
         {
             ToolTipText = title,
-            Icon = TrayIconRenderer.Render(TrayGlyph, _trayColor),
+            Icon = TrayIconRenderer.Render(TrayGlyph, _theme.Tray),
             NoLeftClickDelay = true,
             LeftClickCommand = new RelayCommand(ToggleFlyout),
             ContextMenuMode = ContextMenuMode.PopupMenu,
@@ -173,68 +144,23 @@ public partial class App : Application
             return;
         }
 
-        var color = TrayColor();
-        var deviceColors = CurrentDeviceColors();
-        if (color == _trayColor && deviceColors == _deviceColors)
+        var theme = TaskbarTheme.Current(_uiSettings);
+        if (theme == _theme)
         {
             return;
         }
 
-        _trayColor = color;
-        _deviceColors = deviceColors;
+        _theme = theme;
 
         // TaskbarIcon does not own the image it shows
         var previous = _trayIcon.Icon;
-        _trayIcon.Icon = TrayIconRenderer.Render(TrayGlyph, color);
+        _trayIcon.Icon = TrayIconRenderer.Render(TrayGlyph, theme.Tray);
         previous?.Dispose();
 
         // Device icons re-render because their look includes the color; the flyout rows follow
         // the theme by themselves, and rebuilding them would close an open threshold list
         ShowInTaskbar();
     });
-
-    // Dark blue loses its contrast on a dark taskbar, so that one gets a light blue;
-    // high contrast themes set their own taskbar colors and ignore the light/dark setting
-    private System.Drawing.Color TrayColor()
-    {
-        if (new AccessibilitySettings().HighContrast)
-        {
-            return HighContrastTextColor();
-        }
-
-        return TaskbarIsLight()
-            ? System.Drawing.Color.FromArgb(0x00, 0x3A, 0x8C)
-            : System.Drawing.Color.FromArgb(0x6C, 0xB4, 0xFF);
-    }
-
-    // Device icons look like the system's own tray icons: black or white, no brand color. Low levels take
-    // the Windows critical colors: dark red on a light taskbar, light red on a dark one, where dark red
-    // would be too faint for small digits. High contrast themes allow only their own colors
-    private DeviceColors CurrentDeviceColors()
-    {
-        if (new AccessibilitySettings().HighContrast)
-        {
-            var text = HighContrastTextColor();
-            return new DeviceColors(text, text);
-        }
-
-        return TaskbarIsLight()
-            ? new DeviceColors(System.Drawing.Color.Black, System.Drawing.Color.FromArgb(0xC4, 0x2B, 0x1C))
-            : new DeviceColors(System.Drawing.Color.White, System.Drawing.Color.FromArgb(0xFF, 0x99, 0xA4));
-    }
-
-    private System.Drawing.Color HighContrastTextColor()
-    {
-        var text = _uiSettings.UIElementColor(UIElementType.WindowText);
-        return System.Drawing.Color.FromArgb(text.R, text.G, text.B);
-    }
-
-    // The taskbar follows the system theme, not the app theme; line glyphs need its contrast color
-    private static bool TaskbarIsLight()
-    {
-        using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
-        return key?.GetValue("SystemUsesLightTheme") is int value && value != 0;
-    }
 
     private void ToggleFlyout()
     {
@@ -306,7 +232,7 @@ public partial class App : Application
             return;
         }
 
-        var badges = DeviceBadge.ForPinned(_devices, _settings, _deviceColors);
+        var badges = DeviceBadge.ForPinned(_devices, _settings, _theme.Devices);
         var inElement = _taskbarElement?.Show(badges) == true;
         _deviceIcons?.Update(inElement ? [] : badges);
     }

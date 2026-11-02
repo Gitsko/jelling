@@ -18,10 +18,7 @@ public static class TrayIconRenderer
     // The font's strokes are hairlines at tray size; tracing the outline thickens them
     private const float GlyphBoldWidth = 1.5f;
 
-    private const string GlyphFont = "Segoe Fluent Icons";
-
     // Device icons stack the glyph above the level; side by side at 16 px the glyph would be only 3 px wide
-    private const string DigitFont = "Segoe UI";
     private const float DigitHeightRatio = 7f / 16;
     private const float GapRatio = 1f / 16;
 
@@ -47,7 +44,7 @@ public static class TrayIconRenderer
             using var glyphBrush = new SolidBrush(color);
             if (percent is not { } level)
             {
-                using var alone = Outline(glyph, GlyphFont, FontStyle.Regular, size * 0.75f, size);
+                using var alone = Outline(glyph, DeviceText.GlyphFont, FontStyle.Regular, size * 0.75f, size);
                 graphics.FillPath(glyphBrush, Place(alone, size, size, top: 0));
                 return;
             }
@@ -56,8 +53,8 @@ public static class TrayIconRenderer
             var digitHeight = MathF.Round(size * DigitHeightRatio);
             var glyphHeight = size - digitHeight - MathF.Max(1, MathF.Round(size * GapRatio)) - 1;
 
-            using var digits = Outline(level.ToString(CultureInfo.InvariantCulture), DigitFont, FontStyle.Bold, digitHeight, size);
-            using var symbol = Outline(glyph, GlyphFont, FontStyle.Regular, glyphHeight, size - 2);
+            using var digits = Outline(level.ToString(CultureInfo.InvariantCulture), DeviceText.TextFont, FontStyle.Bold, digitHeight, size);
+            using var symbol = Outline(glyph, DeviceText.GlyphFont, FontStyle.Regular, glyphHeight, size - 2);
             using var digitBrush = new SolidBrush(levelColor);
             graphics.FillPath(glyphBrush, Place(symbol, size, glyphHeight, top: 0));
             graphics.FillPath(digitBrush, Place(digits, size, digitHeight, top: size - digitHeight));
@@ -69,25 +66,13 @@ public static class TrayIconRenderer
         return new RectangleF(inset, inset, Size - width, Size - width);
     }
 
-    // Fitting into the icon's width keeps wide glyphs like the keyboard inside the ring
+    // Fitting into the icon's width keeps wide glyphs like the keyboard inside the ring. DrawString pads for
+    // overhanging characters and pushes the glyph off-center; the outline's real bounds center it exactly
     private static void DrawGlyph(Graphics graphics, string glyph, float height, Color color)
     {
-        using var fontFamily = new FontFamily(GlyphFont);
-        using var path = new GraphicsPath();
+        using var path = Place(Outline(glyph, DeviceText.GlyphFont, FontStyle.Regular, height, Size), Size, Size, top: 0);
         using var brush = new SolidBrush(color);
         using var bold = new Pen(color, GlyphBoldWidth) { LineJoin = LineJoin.Round };
-
-        // DrawString pads for overhanging characters and pushes the glyph off-center;
-        // the outline's real bounds scale and center it exactly inside the ring
-        path.AddString(glyph, fontFamily, (int)FontStyle.Regular, 28, PointF.Empty, StringFormat.GenericTypographic);
-        var bounds = path.GetBounds();
-        var scale = Math.Min(height / bounds.Height, Size / bounds.Width);
-        using var fit = new Matrix();
-        fit.Translate((Size - bounds.Width * scale) / 2, (Size - bounds.Height * scale) / 2);
-        fit.Scale(scale, scale);
-        fit.Translate(-bounds.X, -bounds.Y);
-        path.Transform(fit);
-
         graphics.FillPath(brush, path);
         graphics.DrawPath(bold, path);
     }
@@ -123,8 +108,7 @@ public static class TrayIconRenderer
     /// </summary>
     public static int SmallIconSize()
     {
-        var taskbar = FindWindow("Shell_TrayWnd", null);
-        var dpi = taskbar == IntPtr.Zero ? 0 : GetDpiForWindow(taskbar);
+        var dpi = NativeMethods.TaskbarDpi();
         return GetSystemMetricsForDpi(SmCxSmIcon, dpi != 0 ? dpi : GetDpiForSystem());
     }
 
@@ -156,11 +140,7 @@ public static class TrayIconRenderer
     [DllImport("user32.dll")]
     private static extern uint GetDpiForSystem();
 
-    [DllImport("user32.dll")]
-    private static extern uint GetDpiForWindow(IntPtr window);
 
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern IntPtr FindWindow(string className, string? windowName);
 
     [DllImport("user32.dll")]
     private static extern int GetSystemMetricsForDpi(int index, uint dpi);

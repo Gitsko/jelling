@@ -1,6 +1,5 @@
 using System.Runtime.InteropServices;
 using Jelling.Core;
-using Microsoft.Windows.ApplicationModel.Resources;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -26,8 +25,6 @@ public sealed partial class FlyoutWindow : Window, IDisposable
 
     // Far outside every monitor, as Windows itself places minimized windows
     private const int OffScreen = -32000;
-
-    private static readonly ResourceLoader Resources = new();
 
     private DisplayArea? _displayArea;
     private double _scale = 1.0;
@@ -105,7 +102,7 @@ public sealed partial class FlyoutWindow : Window, IDisposable
 
     public void ShowUpdate(Version latest)
     {
-        var text = string.Format(Resources.GetString("UpdateAvailable"), ReleaseVersion.Format(latest));
+        var text = string.Format(DeviceText.Resources.GetString("UpdateAvailable"), ReleaseVersion.Format(latest));
         ToolTipService.SetToolTip(UpdateLink, text);
         AutomationProperties.SetName(UpdateLink, text);
         UpdateLink.Visibility = Visibility.Visible;
@@ -315,14 +312,14 @@ public sealed partial class FlyoutWindow : Window, IDisposable
     // "Show taskbar on all displays" turned off leaves the other monitors without one
     private static bool HasTaskbar(IntPtr monitor)
     {
-        if (MonitorFromWindow(FindWindow("Shell_TrayWnd", null), MonitorDefaultToNearest) == monitor)
+        if (MonitorFromWindow(NativeMethods.FindWindow("Shell_TrayWnd", null), MonitorDefaultToNearest) == monitor)
         {
             return true;
         }
 
-        for (var taskbar = FindWindowEx(IntPtr.Zero, IntPtr.Zero, "Shell_SecondaryTrayWnd", null);
+        for (var taskbar = NativeMethods.FindWindowEx(IntPtr.Zero, IntPtr.Zero, "Shell_SecondaryTrayWnd", null);
              taskbar != IntPtr.Zero;
-             taskbar = FindWindowEx(IntPtr.Zero, taskbar, "Shell_SecondaryTrayWnd", null))
+             taskbar = NativeMethods.FindWindowEx(IntPtr.Zero, taskbar, "Shell_SecondaryTrayWnd", null))
         {
             if (MonitorFromWindow(taskbar, MonitorDefaultToNearest) == monitor)
             {
@@ -352,11 +349,7 @@ public sealed partial class FlyoutWindow : Window, IDisposable
     [DllImport("user32.dll")]
     private static extern IntPtr MonitorFromWindow(IntPtr window, uint flags);
 
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern IntPtr FindWindow(string className, string? windowName);
 
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern IntPtr FindWindowEx(IntPtr parent, IntPtr childAfter, string className, string? windowName);
 
     [DllImport("shcore.dll")]
     private static extern int GetDpiForMonitor(IntPtr monitor, int dpiType, out uint dpiX, out uint dpiY);

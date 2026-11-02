@@ -58,4 +58,34 @@ public class BadgeContentTests
 
         Assert.Equal(new string('x', 125) + "…", BadgeContent.ToolTip(name, null));
     }
+
+    [Fact]
+    public void WithoutLevelShowsTheGlyphAlone()
+    {
+        Assert.Equal(new BadgeLook(null, IsLow: false, GlyphIsLow: false), BadgeContent.For(null, 20, showPercent: true, hasLowColor: true));
+    }
+
+    [Fact]
+    public void ShownNumberCarriesTheWarning()
+    {
+        Assert.Equal(new BadgeLook(15, IsLow: true, GlyphIsLow: false), BadgeContent.For(15, 20, showPercent: true, hasLowColor: true));
+    }
+
+    [Fact]
+    public void HiddenNumberPassesTheWarningToTheGlyph()
+    {
+        Assert.Equal(new BadgeLook(null, IsLow: true, GlyphIsLow: true), BadgeContent.For(15, 20, showPercent: false, hasLowColor: true));
+    }
+
+    [Fact]
+    public void HiddenNumberAboveThresholdShowsAPlainGlyph()
+    {
+        Assert.Equal(new BadgeLook(null, IsLow: false, GlyphIsLow: false), BadgeContent.For(80, 20, showPercent: false, hasLowColor: true));
+    }
+
+    [Fact]
+    public void LowLevelKeepsItsNumberWithoutAWarningColor()
+    {
+        Assert.Equal(new BadgeLook(15, IsLow: true, GlyphIsLow: false), BadgeContent.For(15, 20, showPercent: false, hasLowColor: false));
+    }
 }
