@@ -231,7 +231,7 @@ public partial class App : Application
         }
 
         var badges = DeviceBadge.ForPinned(_devices, _settings, _theme.Devices);
-        var inElement = _taskbarElement?.Show(badges) == true;
+        var inElement = _taskbarElement?.Show(badges, _theme.Devices) == true;
         _deviceIcons?.Update(inElement ? [] : badges);
     }
 
