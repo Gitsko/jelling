@@ -29,7 +29,8 @@ public sealed class DeviceTrayIcons(Action onClick) : IDisposable
             Remove(id);
         }
 
-        // Once nothing is pinned the next failure, maybe days later, is a new one worth logging
+        // Once no tray icons are needed (nothing pinned, or the taskbar element shows them), the next failure,
+        // maybe days later, is a new one worth logging
         if (badges.Count == 0)
         {
             _lastError = null;

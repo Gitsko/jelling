@@ -20,7 +20,7 @@ public static class CrashLog
     private static readonly Lock Gate = new();
 
     // Paths in stack traces and messages carry the user name; the log gets posted in issues
-    private static readonly PathRedactor UserProfile = UserProfileRedactor();
+    private static readonly PathRedactor ProfileRedactor = UserProfileRedactor();
 
     public static void Write(string source, Exception? exception)
     {
@@ -34,7 +34,7 @@ public static class CrashLog
                     File.Move(LogPath, OldLogPath, overwrite: true);
                 }
 
-                var details = exception is null ? "" : UserProfile.Redact(exception.ToString());
+                var details = exception is null ? "" : ProfileRedactor.Redact(exception.ToString());
                 File.AppendAllText(LogPath, $"{DateTimeOffset.Now:O} [{source}] {details}{Environment.NewLine}");
             }
         }

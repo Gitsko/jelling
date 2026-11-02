@@ -2,7 +2,8 @@ namespace Jelling.Core.Tests;
 
 public class RefreshCoalescerTests
 {
-    // Each refresh waits for the test to release it, so requests can arrive mid-run
+    // Each refresh waits for the test to release it, so requests can arrive mid-run. SetResult runs the
+    // coalescer's continuation inline on the test thread, so the trailing run has started when it returns
     private sealed class ControlledRefresh
     {
         private readonly Queue<TaskCompletionSource> _pending = new();

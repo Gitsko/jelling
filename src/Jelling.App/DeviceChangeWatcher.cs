@@ -66,8 +66,8 @@ public sealed class DeviceChangeWatcher : IDisposable
 
     public void Dispose()
     {
-        // Under the lock, so a restart cannot start a watcher again between its check and Stop: it either
-        // started before (and is stopped here) or sees _disposed. Stop itself needs no lock
+        // A restart checks _disposed and starts the watcher under the same lock, so it either started before
+        // and is stopped below, or sees _disposed and gives up. Stop itself needs no lock
         lock (_gate)
         {
             _disposed = true;
@@ -107,10 +107,9 @@ public sealed class DeviceChangeWatcher : IDisposable
     }
 
     // Until both watchers have enumerated, Added is ignored and containers whose nodes are not known yet are
-    // filtered out; a device that connected meanwhile is reported here. The list read before the start, or
-    // before a restart, misses it otherwise
-    // Under the lock: the two watchers complete on different threads, and each must see the other's flag,
-    // or both could miss that they finished together
+    // filtered out; a device that connected meanwhile is reported here, or the list read before the start
+    // (or a restart) would miss it. The flags are read under the lock: the two watchers complete on different
+    // threads, and without it both could miss that they finished together
     private void OnEnumerationCompleted(Action setEnumerated)
     {
         bool both;

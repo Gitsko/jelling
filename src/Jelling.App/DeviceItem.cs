@@ -24,13 +24,14 @@ public sealed record DeviceItem(
         .ToList();
 
     private static readonly string LowThresholdToolTipText = Strings.Get("LowThresholdToolTip");
+    private static readonly string LowThresholdLabel = Strings.Get("LowThreshold");
 
     // The same for every row; x:Bind inside the item template only reaches instance members
     public IReadOnlyList<string> LowThresholdOptions => LowThresholdLabels;
 
     public string LowThresholdToolTip => LowThresholdToolTipText;
 
-    public string LowThresholdAutomationName => $"{Name}: {Strings.Get("LowThreshold")}";
+    public string LowThresholdAutomationName => $"{Name}: {LowThresholdLabel}";
 
     // Only what describes the device fades when it is disconnected; its settings stay usable
     public double Opacity => IsConnected ? 1.0 : 0.5;
