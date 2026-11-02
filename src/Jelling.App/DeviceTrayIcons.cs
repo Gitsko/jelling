@@ -44,22 +44,9 @@ public sealed class DeviceTrayIcons(Action onClick) : IDisposable
                 if (current.Badge != badge || current.Size != size)
                 {
                     // The tooltip first: should it throw, no new image has been rendered that nothing owns.
-                    // The shell copies the image on update, so the previous one can be released
+                    // TaskbarIcon disposes the image it replaces, and its own on Dispose
                     current.Icon.ToolTipText = badge.ToolTip;
-                    var previous = current.Icon.Icon;
-                    var image = Render(badge, size);
-                    try
-                    {
-                        current.Icon.Icon = image;
-                    }
-                    catch
-                    {
-                        // Not shown, so nothing else would ever release it
-                        image.Dispose();
-                        throw;
-                    }
-
-                    previous?.Dispose();
+                    current.Icon.Icon = Render(badge, size);
                     _icons[badge.Id] = (current.Icon, badge, size);
                 }
 
@@ -96,7 +83,7 @@ public sealed class DeviceTrayIcons(Action onClick) : IDisposable
         }
         catch
         {
-            // No icon holds the image yet, so Release below would not reach it
+            // No icon holds the image yet, so disposing the icon below would not reach it
             image.Dispose();
             throw;
         }
@@ -121,7 +108,7 @@ public sealed class DeviceTrayIcons(Action onClick) : IDisposable
                 _lastError = error;
             }
 
-            Release(icon);
+            icon.Dispose();
         }
     }
 
@@ -129,16 +116,8 @@ public sealed class DeviceTrayIcons(Action onClick) : IDisposable
     {
         var icon = _icons[deviceId].Icon;
         _unpromoted.Remove(icon.Id);
-        Release(icon);
-        _icons.Remove(deviceId);
-    }
-
-    // TaskbarIcon does not own the image it shows
-    private static void Release(TaskbarIcon icon)
-    {
-        var image = icon.Icon;
         icon.Dispose();
-        image?.Dispose();
+        _icons.Remove(deviceId);
     }
 
     private static Icon Render(DeviceBadge badge, int size) =>
