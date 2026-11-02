@@ -8,7 +8,8 @@ namespace Jelling.Core;
 /// pinned, default thresholds and numbers shown; one that is no valid JSON is kept aside as
 /// settings.invalid.json rather than overwritten. One that exists but cannot be read (locked, no access)
 /// reads as defaults too, but is never overwritten: each change reads it again first, and saving throws
-/// while it still cannot be read.
+/// while it still cannot be read. Changes made meanwhile still apply, and once it reads they are applied
+/// again on top of what it holds.
 /// </summary>
 public sealed class DeviceSettings
 {
@@ -18,6 +19,10 @@ public sealed class DeviceSettings
 
     // The file holds settings this instance never saw; writing the defaults over them would lose them
     private bool _readFailed;
+
+    // Changes made while _readFailed, applied again once the file reads; each sets a value, so applying
+    // it twice changes nothing
+    private readonly List<Action> _unsaved = [];
 
     public DeviceSettings(string path)
     {
@@ -35,12 +40,20 @@ public sealed class DeviceSettings
     public void TogglePin(Guid deviceId)
     {
         ReloadIfReadFailed();
-        if (!_pinned.Remove(deviceId))
-        {
-            _pinned.Add(deviceId);
-        }
 
-        Save();
+        // The pin the user now sees, not a toggle: applied again after a reload it must not flip back
+        var pin = !_pinned.Contains(deviceId);
+        Apply(() =>
+        {
+            if (pin)
+            {
+                _pinned.Add(deviceId);
+            }
+            else
+            {
+                _pinned.Remove(deviceId);
+            }
+        });
     }
 
     /// <param name="threshold">One of <see cref="BatteryLevel.LowThresholds"/>.</param>
@@ -52,24 +65,40 @@ public sealed class DeviceSettings
         }
 
         ReloadIfReadFailed();
-        _lowThresholds[deviceId] = threshold;
-        Save();
+        Apply(() => _lowThresholds[deviceId] = threshold);
     }
 
     public void SetShowPercent(bool show)
     {
         ReloadIfReadFailed();
-        ShowPercent = show;
-        Save();
+        Apply(() => ShowPercent = show);
     }
 
     // E.g. a virus scanner held the file at startup; once it can be read, the change builds on what it holds
     private void ReloadIfReadFailed()
     {
+        if (!_readFailed)
+        {
+            return;
+        }
+
+        Load();
+        if (!_readFailed)
+        {
+            _unsaved.ForEach(change => change());
+            _unsaved.Clear();
+        }
+    }
+
+    private void Apply(Action change)
+    {
+        change();
         if (_readFailed)
         {
-            Load();
+            _unsaved.Add(change);
         }
+
+        Save();
     }
 
     // A file that exists but cannot be read leaves the current values
