@@ -101,9 +101,10 @@ Root: HKCU; Subkey: "{#RunKey}"; ValueType: none; ValueName: "Jelling"; Flags: u
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,Jelling}"; Flags: nowait postinstall skipifsilent
-; A silent install closes a running copy too, an unzipped one included; without this it would stay
-; off until the next sign-in
-Filename: "{app}\{#AppExe}"; Flags: nowait; Check: WizardSilent
+; Always started after a silent install: the setup may have closed a running copy, an unzipped one
+; included, and it would otherwise stay off until the next sign-in. As the user who started the setup,
+; not elevated when that was an admin console
+Filename: "{app}\{#AppExe}"; Flags: nowait runasoriginaluser; Check: WizardSilent
 
 [UninstallRun]
 ; Its files cannot be removed while it runs
@@ -138,8 +139,8 @@ begin
   if FindFirst(Dir + '\*', Item) then
   try
     repeat
-      if (Item.Attributes and FILE_ATTRIBUTE_DIRECTORY <> 0)
-        and (Item.Attributes and FILE_ATTRIBUTE_REPARSE_POINT = 0)
+      if ((Item.Attributes and FILE_ATTRIBUTE_DIRECTORY) <> 0)
+        and ((Item.Attributes and FILE_ATTRIBUTE_REPARSE_POINT) = 0)
         and (Item.Name <> '.') and (Item.Name <> '..') then
         RemoveEmptyDirs(Dir + '\' + Item.Name);
     until not FindNext(Item);
@@ -150,7 +151,8 @@ begin
 end;
 
 // Folders an unzipped copy made are not the installer's own, so it would leave them behind empty.
-// Not a plain delete of {app}: /DIR= can still point the install at a folder that holds other files
+// Not a plain delete of {app}: /DIR= can still point the install at a folder that holds other files.
+// After the uninstaller removed its own files, so the folders are empty by then
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usPostUninstall then
