@@ -16,6 +16,14 @@ public class PathRedactorTests
         Assert.Equal(@"%USERPROFILE%\x", Redactor.Redact(@"c:\users\Bob\x"));
     }
 
+    [Theory]
+    [InlineData(@"C:\Users\bob.old\x")]
+    [InlineData(@"C:\Users\bob-work\x")]
+    public void LeavesAFolderNameContinuedByADotOrHyphen(string text)
+    {
+        Assert.Equal(text, Redactor.Redact(text));
+    }
+
     [Fact]
     public void ReplacesTheShortForm()
     {

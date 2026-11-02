@@ -46,7 +46,18 @@ public sealed class DeviceTrayIcons(Action onClick) : IDisposable
                     // The shell copies the image on update, so the previous one can be released
                     current.Icon.ToolTipText = badge.ToolTip;
                     var previous = current.Icon.Icon;
-                    current.Icon.Icon = Render(badge, size);
+                    var image = Render(badge, size);
+                    try
+                    {
+                        current.Icon.Icon = image;
+                    }
+                    catch
+                    {
+                        // Not shown, so nothing else would ever release it
+                        image.Dispose();
+                        throw;
+                    }
+
                     previous?.Dispose();
                     _icons[badge.Id] = (current.Icon, badge, size);
                 }
@@ -68,15 +79,26 @@ public sealed class DeviceTrayIcons(Action onClick) : IDisposable
 
     private void Add(DeviceBadge badge, int size)
     {
-        var icon = new TaskbarIcon
+        var image = Render(badge, size);
+        TaskbarIcon icon;
+        try
         {
-            // Must be set before ForceCreate
-            Id = DeviceIconId.For(Environment.ProcessPath!, badge.Id),
-            Icon = Render(badge, size),
-            ToolTipText = badge.ToolTip,
-            NoLeftClickDelay = true,
-            LeftClickCommand = new RelayCommand(onClick),
-        };
+            icon = new TaskbarIcon
+            {
+                // Must be set before ForceCreate
+                Id = DeviceIconId.For(Environment.ProcessPath!, badge.Id),
+                Icon = image,
+                ToolTipText = badge.ToolTip,
+                NoLeftClickDelay = true,
+                LeftClickCommand = new RelayCommand(onClick),
+            };
+        }
+        catch
+        {
+            // No icon holds the image yet, so Release below would not reach it
+            image.Dispose();
+            throw;
+        }
 
         try
         {

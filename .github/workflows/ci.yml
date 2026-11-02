@@ -50,13 +50,20 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          $release = gh release view $env:TAG --json isDraft,assets 2> $null
-          if (-not $LASTEXITCODE) {
-            $release = $release | ConvertFrom-Json
-            if (-not $release.isDraft -and $release.assets.Count -gt 0) {
-              Write-Error "Release $env:TAG is published with files ($($release.assets.name -join ', ')); delete them first to publish a rebuild"
-              exit 1
-            }
+          # Only "not found" means there is none yet; any other failure (rate limit, outage) must not let a
+          # rebuild through to replace published files
+          $errorFile = Join-Path $env:RUNNER_TEMP gh-release-view.txt
+          $release = gh release view $env:TAG --json isDraft,assets 2> $errorFile
+          if ($LASTEXITCODE) {
+            $problem = Get-Content -Raw $errorFile
+            if ($problem -match 'release not found') { exit 0 }
+            Write-Error "Could not check release ${env:TAG}: $problem"
+            exit 1
+          }
+          $release = $release | ConvertFrom-Json
+          if (-not $release.isDraft -and $release.assets.Count -gt 0) {
+            Write-Error "Release $env:TAG is published with files ($($release.assets.name -join ', ')); delete them first to publish a rebuild"
+            exit 1
           }
           exit 0
       # The job has write access; gh uses GH_TOKEN, so the token need not stay in .git/config for the build
