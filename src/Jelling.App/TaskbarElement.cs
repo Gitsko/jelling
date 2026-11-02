@@ -19,9 +19,11 @@ namespace Jelling.App;
 public sealed partial class TaskbarElement : IDisposable
 {
     private const string ClassName = "JellingTaskbarElement";
+    private const int MaxFailedMeasurements = 3;
 
     private readonly Action _onClick;
     private readonly DispatcherQueueTimer _timer;
+    private readonly TaskButtons _taskButtons = new();
 
     // Held in a field: Windows calls it for as long as the class is registered
     private readonly WndProc _wndProc;
@@ -38,6 +40,16 @@ public sealed partial class TaskbarElement : IDisposable
     private bool _pressed;
     private string? _lastError;
     private uint _lastTaskbarDpi;
+
+    // Measured off this thread; null while unknown: before any measurement succeeded, without a taskbar,
+    // or after several failures in a row
+    private int? _taskButtonsRight;
+    private bool _measuring;
+    private bool _measuredOnce;
+    private int _failedMeasurements;
+    private string? _lastMeasureError;
+    private bool _reportedNoButtons;
+    private bool _disposed;
 
     // True when no tray icons are needed: the element shows every badge, or there is none to show
     private bool _coversBadges;
@@ -69,10 +81,11 @@ public sealed partial class TaskbarElement : IDisposable
         var controls = new InitCommonControlsExInfo { Size = (uint)Marshal.SizeOf<InitCommonControlsExInfo>(), Classes = IccBarClasses };
         InitCommonControlsEx(ref controls);
 
-        // Explorer moves the notification area when icons come and go, and recreates the taskbar after a restart
+        // Explorer moves the notification area when icons come and go, adds app buttons for new windows and
+        // recreates the taskbar after a restart. Each tick measures the buttons; the placement follows the result
         _timer = DispatcherQueue.GetForCurrentThread().CreateTimer();
         _timer.Interval = TimeSpan.FromSeconds(1);
-        _timer.Tick += (_, _) => Recheck();
+        _timer.Tick += (_, _) => _ = MeasureTaskButtonsAsync();
     }
 
     /// <summary>Shows the badges in the taskbar, replacing what it showed before; an empty list removes the element.</summary>
@@ -95,6 +108,16 @@ public sealed partial class TaskbarElement : IDisposable
         else
         {
             _timer.Start();
+            _ = MeasureTaskButtonsAsync();
+        }
+
+        // Until the first measurement lands, tray icons would appear only to go again at once when there is room.
+        // The Recheck after it raises AvailabilityChanged if there is none. Only the first: a later measurement
+        // that keeps failing would otherwise hide the badges and start the next one on every Recheck
+        if (_badges.Count > 0 && !_measuredOnce && _measuring)
+        {
+            _coversBadges = true;
+            return true;
         }
 
         _coversBadges = TryPlace();
@@ -103,6 +126,7 @@ public sealed partial class TaskbarElement : IDisposable
 
     public void Dispose()
     {
+        _disposed = true;
         _timer.Stop();
         DestroyElement();
         ReleaseStrip();
@@ -119,6 +143,61 @@ public sealed partial class TaskbarElement : IDisposable
         if (_coversBadges != covered || (rescaled && !_coversBadges))
         {
             AvailabilityChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    // One measurement at a time: a busy Explorer must not pile them up
+    private async Task MeasureTaskButtonsAsync()
+    {
+        if (_measuring)
+        {
+            return;
+        }
+
+        _measuring = true;
+        try
+        {
+            _taskButtonsRight = await Task.Run(_taskButtons.RightEdge);
+            _failedMeasurements = 0;
+            _lastMeasureError = null;
+            ReportNoButtons();
+        }
+        catch (Exception exception)
+        {
+            // E.g. Explorer was busy; the last extent stays for a few ticks. Kept for longer, it would miss
+            // buttons opened since, so after that the tray icons take over until a measurement succeeds
+            if (++_failedMeasurements >= MaxFailedMeasurements)
+            {
+                _taskButtonsRight = null;
+            }
+
+            var error = $"{exception.GetType()}: {exception.Message}";
+            if (error != _lastMeasureError)
+            {
+                CrashLog.Write("TaskButtons", exception);
+                _lastMeasureError = error;
+            }
+        }
+        finally
+        {
+            _measuring = false;
+            _measuredOnce = true;
+        }
+
+        if (!_disposed)
+        {
+            Recheck();
+        }
+    }
+
+    // No button at all is rare, as pinned apps have one too. Logged once, in case a Windows update renamed the
+    // button class and the element covers the buttons again
+    private void ReportNoButtons()
+    {
+        if (_taskButtonsRight == 0 && !_reportedNoButtons)
+        {
+            CrashLog.Write("TaskButtons", new InvalidOperationException("No taskbar app buttons found"));
+            _reportedNoButtons = true;
         }
     }
 
@@ -197,7 +276,7 @@ public sealed partial class TaskbarElement : IDisposable
             _stripRenderedFor = (dpi, notificationBounds.Height);
         }
 
-        var bounds = TaskbarPlacement.Calculate(BoundsOf(taskbar), notificationBounds, BoundsOf(taskList), _strip.Width);
+        var bounds = TaskbarPlacement.Calculate(BoundsOf(taskbar), notificationBounds, BoundsOf(taskList), _taskButtonsRight, _strip.Width);
         if (bounds is not { } placed)
         {
             return false;
