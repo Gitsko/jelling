@@ -29,6 +29,12 @@ public sealed class DeviceTrayIcons(Action onClick) : IDisposable
             Remove(id);
         }
 
+        // Once nothing is pinned the next failure, maybe days later, is a new one worth logging
+        if (badges.Count == 0)
+        {
+            _lastError = null;
+        }
+
         var size = TrayIconRenderer.SmallIconSize();
         foreach (var badge in badges)
         {

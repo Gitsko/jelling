@@ -84,6 +84,18 @@ public class BadgeContentTests
     }
 
     [Fact]
+    public void ShownNumberAboveThresholdIsPlain()
+    {
+        Assert.Equal(new BadgeLook(80, IsLow: false, GlyphIsLow: false), BadgeContent.For(80, 20, showPercent: true, hasLowColor: true));
+    }
+
+    [Fact]
+    public void WithoutAWarningColorALevelAboveThresholdStaysHidden()
+    {
+        Assert.Equal(new BadgeLook(null, IsLow: false, GlyphIsLow: false), BadgeContent.For(80, 20, showPercent: false, hasLowColor: false));
+    }
+
+    [Fact]
     public void LowLevelKeepsItsNumberWithoutAWarningColor()
     {
         Assert.Equal(new BadgeLook(15, IsLow: true, GlyphIsLow: false), BadgeContent.For(15, 20, showPercent: false, hasLowColor: false));
