@@ -212,6 +212,45 @@ public sealed class DeviceSettingsTests : IDisposable
     }
 
     [Fact]
+    public void ChangesWhileLockedSurviveTheReload()
+    {
+        new DeviceSettings(SettingsPath).TogglePin(Headset);
+        DeviceSettings settings;
+        using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            settings = new DeviceSettings(SettingsPath);
+            Assert.Throws<IOException>(() => settings.TogglePin(Mouse));
+            Assert.Throws<IOException>(() => settings.SetLowThreshold(Mouse, 40));
+        }
+
+        settings.SetShowPercent(false);
+
+        Assert.True(settings.IsPinned(Mouse));
+        var reloaded = new DeviceSettings(SettingsPath);
+        Assert.True(reloaded.IsPinned(Headset));
+        Assert.True(reloaded.IsPinned(Mouse));
+        Assert.Equal(40, reloaded.LowThreshold(Mouse));
+        Assert.False(reloaded.ShowPercent);
+    }
+
+    [Fact]
+    public void ToggleWhileLockedKeepsWhatTheUserSawAfterTheReload()
+    {
+        new DeviceSettings(SettingsPath).TogglePin(Headset);
+        DeviceSettings settings;
+        using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            // Read as defaults, so Headset looks unpinned and the toggle pins it
+            settings = new DeviceSettings(SettingsPath);
+            Assert.Throws<IOException>(() => settings.TogglePin(Headset));
+        }
+
+        settings.SetShowPercent(false);
+
+        Assert.True(new DeviceSettings(SettingsPath).IsPinned(Headset));
+    }
+
+    [Fact]
     public void CorruptFileThatCannotBeKeptAsideReadsAsDefaults()
     {
         Directory.CreateDirectory(_folder);
