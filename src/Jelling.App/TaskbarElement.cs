@@ -547,8 +547,6 @@ public sealed class TaskbarElement : IDisposable
     [DllImport("user32.dll")]
     private static extern IntPtr DefWindowProc(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
 
-
-
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool GetWindowRect(IntPtr window, out Rect32 rect);
 
@@ -557,7 +555,6 @@ public sealed class TaskbarElement : IDisposable
 
     [DllImport("user32.dll")]
     private static extern bool IsWindow(IntPtr window);
-
 
     [DllImport("user32.dll")]
     private static extern bool SetWindowPos(IntPtr window, IntPtr insertAfter, int x, int y, int width, int height, uint flags);

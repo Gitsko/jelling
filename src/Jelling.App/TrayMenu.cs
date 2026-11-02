@@ -10,14 +10,12 @@ internal static class TrayMenu
     public static MenuFlyout Create(
         string title, Func<bool> showPercent, Action<bool> setShowPercent, Action exit, Action<string, Action> guard)
     {
-        var resources = DeviceText.Resources;
-
         // PopupMenu mode turns the flyout into a native menu that only runs Command, not Click
         var menu = new MenuFlyout();
         menu.Items.Add(new MenuFlyoutItem { Text = title, IsEnabled = false });
         menu.Items.Add(new MenuFlyoutSeparator());
 
-        var autoStart = new ToggleMenuFlyoutItem { Text = resources.GetString("AutoStart"), IsChecked = AutoStart.IsEnabled };
+        var autoStart = new ToggleMenuFlyoutItem { Text = Strings.Get("AutoStart"), IsChecked = AutoStart.IsEnabled };
         // The native menu does not flip IsChecked itself; read the registry back so the tick shows what is stored
         // A policy or security tool may lock the Run key; the tick then stays as it was
         autoStart.Command = new RelayCommand(() => guard("AutoStart", () =>
@@ -27,7 +25,7 @@ internal static class TrayMenu
         }));
         menu.Items.Add(autoStart);
 
-        var percent = new ToggleMenuFlyoutItem { Text = resources.GetString("ShowPercent"), IsChecked = showPercent() };
+        var percent = new ToggleMenuFlyoutItem { Text = Strings.Get("ShowPercent"), IsChecked = showPercent() };
         percent.Command = new RelayCommand(() =>
         {
             setShowPercent(!showPercent());
@@ -35,7 +33,7 @@ internal static class TrayMenu
         });
         menu.Items.Add(percent);
         menu.Items.Add(new MenuFlyoutSeparator());
-        menu.Items.Add(new MenuFlyoutItem { Text = resources.GetString("Exit"), Command = new RelayCommand(exit) });
+        menu.Items.Add(new MenuFlyoutItem { Text = Strings.Get("Exit"), Command = new RelayCommand(exit) });
         return menu;
     }
 }

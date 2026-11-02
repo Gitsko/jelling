@@ -67,10 +67,11 @@ public static class TrayIconRenderer
     }
 
     // Fitting into the icon's width keeps wide glyphs like the keyboard inside the ring. DrawString pads for
-    // overhanging characters and pushes the glyph off-center; the outline's real bounds center it exactly
+    // overhanging characters and pushes the glyph off-center; the outline's real bounds center it to the nearest pixel
     private static void DrawGlyph(Graphics graphics, string glyph, float height, Color color)
     {
-        using var path = Place(Outline(glyph, DeviceText.GlyphFont, FontStyle.Regular, height, Size), Size, Size, top: 0);
+        using var path = Outline(glyph, DeviceText.GlyphFont, FontStyle.Regular, height, Size);
+        Place(path, Size, Size, top: 0);
         using var brush = new SolidBrush(color);
         using var bold = new Pen(color, GlyphBoldWidth) { LineJoin = LineJoin.Round };
         graphics.FillPath(brush, path);
@@ -139,8 +140,6 @@ public static class TrayIconRenderer
 
     [DllImport("user32.dll")]
     private static extern uint GetDpiForSystem();
-
-
 
     [DllImport("user32.dll")]
     private static extern int GetSystemMetricsForDpi(int index, uint dpi);
