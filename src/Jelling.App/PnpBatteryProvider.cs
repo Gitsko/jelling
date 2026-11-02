@@ -22,8 +22,11 @@ public sealed class PnpBatteryProvider : IBatteryProvider
         var containersTask = DeviceInformation.FindAllAsync(
             "", [CategoryIdsKey, ConnectedKey], DeviceInformationKind.DeviceContainer).AsTask();
 
-        var nodes = (await nodesTask).Select(ToNode).OfType<PnpNode>();
-        var containers = (await containersTask).Select(ToContainer).OfType<DeviceContainer>();
+        // Both awaited together: should both fail, the second exception is observed too instead of
+        // surfacing later as an unobserved task
+        await Task.WhenAll(nodesTask, containersTask);
+        var nodes = nodesTask.Result.Select(ToNode).OfType<PnpNode>();
+        var containers = containersTask.Result.Select(ToContainer).OfType<DeviceContainer>();
 
         return DeviceMerger.Merge(nodes, containers);
     }

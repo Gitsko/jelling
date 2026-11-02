@@ -45,4 +45,10 @@ public class ReleaseVersionTests
     {
         Assert.Equal("v1.2.0", ReleaseVersion.Format(new Version(1, 2, 0, 0)));
     }
+
+    [Fact]
+    public void FormatsATwoPartVersionWithThreeParts()
+    {
+        Assert.Equal("v1.2.0", ReleaseVersion.Format(new Version(1, 2)));
+    }
 }

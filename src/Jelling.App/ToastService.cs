@@ -40,14 +40,15 @@ public sealed class ToastService : IDisposable
 
     public void ShowLow(BatteryDevice device)
     {
-        if (!_registered)
+        // The notifier only warns about devices that report a level
+        if (!_registered || device.BatteryPercent is not { } percent)
         {
             return;
         }
 
         var notification = new AppNotificationBuilder()
             .AddText(string.Format(Resources.GetString("LowBatteryTitle"), device.Name))
-            .AddText(string.Format(Resources.GetString("LowBatteryText"), device.BatteryPercent))
+            .AddText(string.Format(Resources.GetString("LowBatteryText"), DeviceItem.FormatPercent(percent)))
             // One toast per device: a later warning replaces the earlier one instead of stacking
             .SetTag(device.Id.ToString("N"))
             .SetGroup(Group)

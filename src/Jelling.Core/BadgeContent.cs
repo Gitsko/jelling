@@ -23,7 +23,14 @@ public static class BadgeContent
         var room = MaxToolTipLength - suffix.Length;
         if (name.Length > room)
         {
-            name = name[..(room - 1)] + "…";
+            // Cutting between the halves of a surrogate pair (an emoji in the name) would leave half a character
+            var keep = room - 1;
+            if (char.IsHighSurrogate(name[keep - 1]))
+            {
+                keep--;
+            }
+
+            name = name[..keep] + "…";
         }
 
         return name + suffix;

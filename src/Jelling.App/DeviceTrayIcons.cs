@@ -16,6 +16,9 @@ public sealed class DeviceTrayIcons(Action onClick) : IDisposable
     // Icons whose NotifyIconSettings entry Explorer had not written yet when they were added
     private readonly HashSet<Guid> _unpromoted = [];
 
+    // A tray that keeps refusing the icon would otherwise be logged on every refresh
+    private string? _lastError;
+
     /// <param name="badges">From <see cref="DeviceBadge.ForPinned"/>; empty while the taskbar element shows them.</param>
     public void Update(IReadOnlyList<DeviceBadge> badges)
     {
@@ -72,6 +75,7 @@ public sealed class DeviceTrayIcons(Action onClick) : IDisposable
         try
         {
             icon.ForceCreate(false);
+            _lastError = null;
             _icons[badge.Id] = (icon, badge, size);
             if (!TrayPromotion.TryPromote(icon.Id))
             {
@@ -81,7 +85,13 @@ public sealed class DeviceTrayIcons(Action onClick) : IDisposable
         catch (Exception exception)
         {
             // E.g. while Explorer restarts; the next refresh tries again instead of piling up icons
-            CrashLog.Write("DeviceTrayIcon", exception);
+            var error = $"{exception.GetType()}: {exception.Message}";
+            if (error != _lastError)
+            {
+                CrashLog.Write("DeviceTrayIcon", exception);
+                _lastError = error;
+            }
+
             Release(icon);
         }
     }

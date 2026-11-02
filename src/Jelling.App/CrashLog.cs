@@ -15,6 +15,9 @@ public static class CrashLog
 
     private static readonly Lock Gate = new();
 
+    // Paths in stack traces and messages carry the user name; the log gets posted in issues
+    private static readonly string UserProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
     public static void Write(string source, Exception? exception)
     {
         try
@@ -27,7 +30,10 @@ public static class CrashLog
                     File.Move(LogPath, OldLogPath, overwrite: true);
                 }
 
-                File.AppendAllText(LogPath, $"{DateTimeOffset.Now:O} [{source}] {exception}{Environment.NewLine}");
+                var details = UserProfile.Length > 0
+                    ? exception?.ToString().Replace(UserProfile, "%USERPROFILE%", StringComparison.OrdinalIgnoreCase)
+                    : exception?.ToString();
+                File.AppendAllText(LogPath, $"{DateTimeOffset.Now:O} [{source}] {details}{Environment.NewLine}");
             }
         }
         catch (Exception logError) when (logError is IOException or UnauthorizedAccessException)

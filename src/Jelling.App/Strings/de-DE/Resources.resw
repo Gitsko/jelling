@@ -21,7 +21,7 @@
   <data name="BatteryUnknown" xml:space="preserve"><value>Akkustand unbekannt</value></data>
   <data name="LowThresholdHeader.Text" xml:space="preserve"><value>Warnen bei</value></data>
   <data name="LowBatteryTitle" xml:space="preserve"><value>{0}: Akku schwach</value></data>
-  <data name="LowBatteryText" xml:space="preserve"><value>Noch {0} %. Bitte bald aufladen.</value></data>
+  <data name="LowBatteryText" xml:space="preserve"><value>Noch {0}. Bitte bald aufladen.</value></data>
   <data name="CloseButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Schließen</value></data>
   <data name="CloseButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Schließen</value></data>
   <data name="GitHubLink.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Projektseite auf GitHub</value></data>
