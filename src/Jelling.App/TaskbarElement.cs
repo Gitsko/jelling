@@ -112,8 +112,7 @@ public sealed class TaskbarElement : IDisposable
         _coversBadges = TryPlace();
 
         // The tray icons are rendered at the taskbar's icon size; scaled by Explorer their digits blur
-        var taskbar = FindWindow("Shell_TrayWnd", null);
-        var dpi = taskbar == IntPtr.Zero ? 0 : GetDpiForWindow(taskbar);
+        var dpi = NativeMethods.TaskbarDpi();
         var rescaled = dpi != 0 && _lastTaskbarDpi != 0 && dpi != _lastTaskbarDpi;
         if (dpi != 0)
         {
@@ -164,21 +163,21 @@ public sealed class TaskbarElement : IDisposable
             return true;
         }
 
-        var taskbar = FindWindow("Shell_TrayWnd", null);
+        var taskbar = NativeMethods.FindWindow("Shell_TrayWnd", null);
         if (taskbar == IntPtr.Zero)
         {
             return false;
         }
 
-        var notificationArea = FindWindowEx(taskbar, IntPtr.Zero, "TrayNotifyWnd", null);
-        var taskList = FindWindowEx(taskbar, IntPtr.Zero, "ReBarWindow32", null);
+        var notificationArea = NativeMethods.FindWindowEx(taskbar, IntPtr.Zero, "TrayNotifyWnd", null);
+        var taskList = NativeMethods.FindWindowEx(taskbar, IntPtr.Zero, "ReBarWindow32", null);
         if (notificationArea == IntPtr.Zero || taskList == IntPtr.Zero)
         {
             return false;
         }
 
         // The taskbar's own DPI, not the system's: it can sit on a monitor with a different scale
-        var dpi = GetDpiForWindow(taskbar);
+        var dpi = NativeMethods.GetDpiForWindow(taskbar);
         var notificationBounds = BoundsOf(notificationArea);
         if (_strip is null || _stripRenderedFor != (dpi, notificationBounds.Height))
         {
@@ -541,11 +540,7 @@ public sealed class TaskbarElement : IDisposable
     [DllImport("user32.dll")]
     private static extern IntPtr DefWindowProc(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
 
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern IntPtr FindWindow(string className, string? windowName);
 
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern IntPtr FindWindowEx(IntPtr parent, IntPtr childAfter, string className, string? windowName);
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool GetWindowRect(IntPtr window, out Rect32 rect);
@@ -556,8 +551,6 @@ public sealed class TaskbarElement : IDisposable
     [DllImport("user32.dll")]
     private static extern bool IsWindow(IntPtr window);
 
-    [DllImport("user32.dll")]
-    private static extern uint GetDpiForWindow(IntPtr window);
 
     [DllImport("user32.dll")]
     private static extern bool SetWindowPos(IntPtr window, IntPtr insertAfter, int x, int y, int width, int height, uint flags);

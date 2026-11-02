@@ -10,8 +10,6 @@ namespace Jelling.App;
 /// </summary>
 public static class TaskbarStripRenderer
 {
-    private const string GlyphFont = "Segoe Fluent Icons";
-    private const string TextFont = "Segoe UI";
     private const float GlyphSizeEpx = 16;
     private const float TextSizeEpx = 14;
     private const float PaddingEpx = 8;
@@ -28,8 +26,8 @@ public static class TaskbarStripRenderer
     public static (Bitmap Image, IReadOnlyList<Rectangle> BadgeBounds) Render(
         IReadOnlyList<DeviceBadge> badges, int height, double scale)
     {
-        using var glyphFont = new Font(GlyphFont, (float)(GlyphSizeEpx * scale), GraphicsUnit.Pixel);
-        using var textFont = new Font(TextFont, (float)(TextSizeEpx * scale), FontStyle.Regular, GraphicsUnit.Pixel);
+        using var glyphFont = new Font(DeviceText.GlyphFont, (float)(GlyphSizeEpx * scale), GraphicsUnit.Pixel);
+        using var textFont = new Font(DeviceText.TextFont, (float)(TextSizeEpx * scale), FontStyle.Regular, GraphicsUnit.Pixel);
         using var format = new StringFormat(StringFormat.GenericTypographic) { LineAlignment = StringAlignment.Center };
         format.FormatFlags |= StringFormatFlags.NoWrap;
         var padding = (float)(PaddingEpx * scale);
@@ -50,7 +48,7 @@ public static class TaskbarStripRenderer
                 var glyph = new RectangleF(x, 0, glyphWidth, height);
                 x += glyphWidth;
 
-                var text = badge.Percent is { } percent ? DeviceItem.FormatPercent(percent) : null;
+                var text = badge.Percent is { } percent ? DeviceText.FormatPercent(percent) : null;
                 var level = RectangleF.Empty;
                 if (text is not null)
                 {

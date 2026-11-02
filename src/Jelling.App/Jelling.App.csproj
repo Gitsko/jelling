@@ -19,6 +19,8 @@
     <Nullable>enable</Nullable>
     <DefaultLanguage>en-US</DefaultLanguage>
     <!-- Program.cs owns Main for the single-instance check -->
+    <!-- The LibraryImport source generator emits pointer code -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <!-- packages.lock.json pins every package, transitive ones included; CI fails instead of restoring something else -->
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
