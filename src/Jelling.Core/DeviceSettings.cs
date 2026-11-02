@@ -22,7 +22,7 @@ public sealed class DeviceSettings
     public DeviceSettings(string path)
     {
         _path = path;
-        _readFailed = !TryLoad();
+        Load();
     }
 
     public bool ShowPercent { get; private set; } = true;
@@ -68,17 +68,17 @@ public sealed class DeviceSettings
     {
         if (_readFailed)
         {
-            _readFailed = !TryLoad();
+            Load();
         }
     }
 
-    // False leaves the current values; the file exists but cannot be read
-    private bool TryLoad()
+    // A file that exists but cannot be read leaves the current values
+    private void Load()
     {
-        var stored = Read(_path, out var failed);
-        if (failed)
+        var stored = Read(_path, out _readFailed);
+        if (_readFailed)
         {
-            return false;
+            return;
         }
 
         _pinned.Clear();
@@ -94,8 +94,6 @@ public sealed class DeviceSettings
                 _lowThresholds[deviceId] = threshold;
             }
         }
-
-        return true;
     }
 
     private void Save()

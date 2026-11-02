@@ -45,7 +45,8 @@ public static class TrayIconRenderer
             if (percent is not { } level)
             {
                 using var alone = Outline(glyph, DeviceText.GlyphFont, FontStyle.Regular, size * 0.75f, size);
-                graphics.FillPath(glyphBrush, Place(alone, size, size, top: 0));
+                Place(alone, size, size, top: 0);
+                graphics.FillPath(glyphBrush, alone);
                 return;
             }
 
@@ -56,8 +57,10 @@ public static class TrayIconRenderer
             using var digits = Outline(level.ToString(CultureInfo.InvariantCulture), DeviceText.TextFont, FontStyle.Bold, digitHeight, size);
             using var symbol = Outline(glyph, DeviceText.GlyphFont, FontStyle.Regular, glyphHeight, size - 2);
             using var digitBrush = new SolidBrush(levelColor);
-            graphics.FillPath(glyphBrush, Place(symbol, size, glyphHeight, top: 0));
-            graphics.FillPath(digitBrush, Place(digits, size, digitHeight, top: size - digitHeight));
+            Place(symbol, size, glyphHeight, top: 0);
+            Place(digits, size, digitHeight, top: size - digitHeight);
+            graphics.FillPath(glyphBrush, symbol);
+            graphics.FillPath(digitBrush, digits);
         });
 
     private static RectangleF Ring(float width)
@@ -94,13 +97,12 @@ public static class TrayIconRenderer
     }
 
     // Centers the outline horizontally in a row starting at top; whole-pixel offsets avoid blurring it
-    private static GraphicsPath Place(GraphicsPath path, int size, float rowHeight, float top)
+    private static void Place(GraphicsPath path, int size, float rowHeight, float top)
     {
         var bounds = path.GetBounds();
         using var move = new Matrix();
         move.Translate(MathF.Round((size - bounds.Width) / 2), MathF.Round(top + (rowHeight - bounds.Height) / 2));
         path.Transform(move);
-        return path;
     }
 
     /// <summary>
