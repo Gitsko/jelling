@@ -129,3 +129,30 @@ function AutoStartEnabled(): Boolean;
 begin
   Result := RegValueExists(HKCU, '{#RunKey}', 'Jelling');
 end;
+
+// RemoveDir fails on a folder that still holds anything, so only empty ones go. Links are not followed
+procedure RemoveEmptyDirs(const Dir: String);
+var
+  Item: TFindRec;
+begin
+  if FindFirst(Dir + '\*', Item) then
+  try
+    repeat
+      if (Item.Attributes and FILE_ATTRIBUTE_DIRECTORY <> 0)
+        and (Item.Attributes and FILE_ATTRIBUTE_REPARSE_POINT = 0)
+        and (Item.Name <> '.') and (Item.Name <> '..') then
+        RemoveEmptyDirs(Dir + '\' + Item.Name);
+    until not FindNext(Item);
+  finally
+    FindClose(Item);
+  end;
+  RemoveDir(Dir);
+end;
+
+// Folders an unzipped copy made are not the installer's own, so it would leave them behind empty.
+// Not a plain delete of {app}: /DIR= can still point the install at a folder that holds other files
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usPostUninstall then
+    RemoveEmptyDirs(ExpandConstant('{app}'));
+end;
