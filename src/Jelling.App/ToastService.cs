@@ -45,8 +45,8 @@ public sealed class ToastService : IDisposable
         }
 
         var notification = new AppNotificationBuilder()
-            .AddText(string.Format(DeviceText.Resources.GetString("LowBatteryTitle"), device.Name))
-            .AddText(string.Format(DeviceText.Resources.GetString("LowBatteryText"), DeviceText.FormatPercent(percent)))
+            .AddText(string.Format(Strings.Get("LowBatteryTitle"), device.Name))
+            .AddText(string.Format(Strings.Get("LowBatteryText"), DeviceText.FormatPercent(percent)))
             // One toast per device: a later warning replaces the earlier one instead of stacking
             .SetTag(device.Id.ToString("N"))
             .SetGroup(Group)

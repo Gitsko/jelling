@@ -20,17 +20,17 @@ public sealed record DeviceItem(
     int LowThresholdIndex)
 {
     private static readonly IReadOnlyList<string> LowThresholdLabels = BatteryLevel.LowThresholds
-        .Select(threshold => threshold == 0 ? DeviceText.Resources.GetString("LowThresholdOff") : DeviceText.FormatPercent(threshold))
+        .Select(threshold => threshold == 0 ? Strings.Get("LowThresholdOff") : DeviceText.FormatPercent(threshold))
         .ToList();
 
-    private static readonly string LowThresholdToolTipText = DeviceText.Resources.GetString("LowThresholdToolTip");
+    private static readonly string LowThresholdToolTipText = Strings.Get("LowThresholdToolTip");
 
     // The same for every row; x:Bind inside the item template only reaches instance members
     public IReadOnlyList<string> LowThresholdOptions => LowThresholdLabels;
 
     public string LowThresholdToolTip => LowThresholdToolTipText;
 
-    public string LowThresholdAutomationName => $"{Name}: {DeviceText.Resources.GetString("LowThreshold")}";
+    public string LowThresholdAutomationName => $"{Name}: {Strings.Get("LowThreshold")}";
 
     // Only what describes the device fades when it is disconnected; its settings stay usable
     public double Opacity => IsConnected ? 1.0 : 0.5;
@@ -47,8 +47,8 @@ public sealed record DeviceItem(
     // It reads the "–" of a missing level as nothing, and the faded row of a disconnected device says nothing to it either
     public override string ToString()
     {
-        var status = DeviceText.Resources.GetString(IsConnected ? "Connected" : "Disconnected");
-        var battery = HasLevel ? BatteryText : DeviceText.Resources.GetString("BatteryUnknown");
+        var status = Strings.Get(IsConnected ? "Connected" : "Disconnected");
+        var battery = HasLevel ? BatteryText : Strings.Get("BatteryUnknown");
         return IsLow
             ? $"{Name}, {status}, {battery}, {DeviceText.LowLevelText}"
             : $"{Name}, {status}, {battery}";
@@ -70,8 +70,8 @@ public sealed record DeviceItem(
             batteryText,
             device.BatteryPercent is not null,
             device.BatteryPercent is { } level && BatteryLevel.IsLow(level, lowThreshold),
-            isPinned ? "\ue77a" : "\ue718",
-            DeviceText.Resources.GetString(isPinned ? "Unpin" : "Pin"),
+            isPinned ? "\uE77A" : "\uE718",
+            Strings.Get(isPinned ? "Unpin" : "Pin"),
             BatteryLevel.LowThresholds.IndexOf(lowThreshold));
     }
 }

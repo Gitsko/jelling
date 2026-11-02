@@ -1,5 +1,4 @@
 using Jelling.Core;
-using Microsoft.Windows.ApplicationModel.Resources;
 
 namespace Jelling.App;
 
@@ -11,24 +10,22 @@ internal static class DeviceText
     public const string GlyphFont = "Segoe Fluent Icons";
     public const string TextFont = "Segoe UI";
 
-    public static readonly ResourceLoader Resources = new();
-
     // German puts a space before the percent sign, English does not
-    public static string FormatPercent(int percent) => string.Format(Resources.GetString("PercentFormat"), percent);
+    public static string FormatPercent(int percent) => string.Format(Strings.Get("PercentFormat"), percent);
 
-    public static string LowLevelText => Resources.GetString("LowLevel");
+    public static string LowLevelText => Strings.Get("LowLevel");
 
     public static string GlyphFor(DeviceKind kind) => kind switch
     {
-        DeviceKind.Headset => "",
-        DeviceKind.Mouse => "",
-        DeviceKind.Keyboard => "",
-        DeviceKind.GameController => "",
-        DeviceKind.Speaker => "",
-        _ => "",
+        DeviceKind.Headset => "\uE7F6",
+        DeviceKind.Mouse => "\uE962",
+        DeviceKind.Keyboard => "\uE765",
+        DeviceKind.GameController => "\uE7FC",
+        DeviceKind.Speaker => "\uE7F5",
+        _ => "\uE702",
     };
 
     // Battery0-Battery9 are E850-E859, Battery10 (full) sits apart at E83F
     public static string GlyphForStep(int step) =>
-        step == 10 ? "" : ((char)(0xE850 + step)).ToString();
+        step == 10 ? "\uE83F" : ((char)(0xE850 + step)).ToString();
 }

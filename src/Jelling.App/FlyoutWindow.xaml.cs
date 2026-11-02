@@ -102,7 +102,7 @@ public sealed partial class FlyoutWindow : Window, IDisposable
 
     public void ShowUpdate(Version latest)
     {
-        var text = string.Format(DeviceText.Resources.GetString("UpdateAvailable"), ReleaseVersion.Format(latest));
+        var text = string.Format(Strings.Get("UpdateAvailable"), ReleaseVersion.Format(latest));
         ToolTipService.SetToolTip(UpdateLink, text);
         AutomationProperties.SetName(UpdateLink, text);
         UpdateLink.Visibility = Visibility.Visible;
@@ -348,8 +348,6 @@ public sealed partial class FlyoutWindow : Window, IDisposable
 
     [DllImport("user32.dll")]
     private static extern IntPtr MonitorFromWindow(IntPtr window, uint flags);
-
-
 
     [DllImport("shcore.dll")]
     private static extern int GetDpiForMonitor(IntPtr monitor, int dpiType, out uint dpiX, out uint dpiY);

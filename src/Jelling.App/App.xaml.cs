@@ -78,7 +78,7 @@ public partial class App : Application
         _watcher.Changed += (_, _) => dispatcher.TryEnqueue(() => _ = RefreshAsync());
         _watcher.Start();
 
-        var title = DeviceText.Resources.GetString("FlyoutHeader/Text");
+        var title = Strings.Get("FlyoutHeader/Text");
         var menu = TrayMenu.Create(title, () => _settings.ShowPercent, SetShowPercent, Shutdown, Guard);
 
         _trayIcon = new TaskbarIcon
