@@ -1,0 +1,6 @@
+CUIAutomation8
+IUIAutomation
+IUIAutomation2
+IUIAutomationCacheRequest
+AutomationElementMode
+UIA_PROPERTY_ID

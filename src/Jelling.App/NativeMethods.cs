@@ -5,6 +5,10 @@ namespace Jelling.App;
 /// <summary>
 /// The Win32 calls more than one class needs. Calls only one class makes stay declared in that class.
 /// </summary>
+/// <remarks>
+/// Flat functions are declared by hand. COM interfaces such as UI Automation's come from CsWin32 (listed in
+/// NativeMethods.txt): written by hand, their vtable order would have to match the SDK headers exactly.
+/// </remarks>
 internal static partial class NativeMethods
 {
     [LibraryImport("user32.dll", EntryPoint = "FindWindowW", StringMarshalling = StringMarshalling.Utf16)]

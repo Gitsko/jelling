@@ -18,7 +18,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <DefaultLanguage>en-US</DefaultLanguage>
-    <!-- The LibraryImport source generator emits pointer code -->
+    <!-- The LibraryImport source generator and CsWin32 emit pointer code -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- Program.cs owns Main for the single-instance check -->
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
@@ -52,6 +52,7 @@
 
   <ItemGroup>
     <PackageReference Include="H.NotifyIcon.WinUI" Version="2.4.1" />
+    <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.363" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2957" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.6.4" />
   </ItemGroup>
