@@ -4,11 +4,11 @@ Battery levels of your Bluetooth devices, one click away in the Windows 11 taskb
 
 Jelling Battery Monitor puts a Bluetooth icon in the notification area. Click it and a flyout lists every paired device with its type and charge, styled like the Windows 11 quick settings. Devices that are switched off or out of range stay in the list, dimmed, with their last known level.
 
-**[Download for Windows 11 (x64)](https://github.com/Gitsko/jelling/releases/latest/download/Jelling-win-x64.zip)** · [ARM64](https://github.com/Gitsko/jelling/releases/latest/download/Jelling-win-arm64.zip) · [all releases](https://github.com/Gitsko/jelling/releases)
+**[Download for Windows 11 (x64)](https://github.com/Gitsko/jelling/releases/latest/download/Jelling-Setup-win-x64.exe)** · [ARM64](https://github.com/Gitsko/jelling/releases/latest/download/Jelling-Setup-win-arm64.exe) · [all releases](https://github.com/Gitsko/jelling/releases)
 
 ![The flyout lists the paired devices with their battery level and warning threshold](assets/readme/flyout.png)
 
-Pinned devices sit in the taskbar next to the notification area, here a headset at 100 % and a keyboard at 50 %:
+Pinned devices sit in the taskbar next to the notification area, here a headset at 80 % and a mouse at 100 %:
 
 ![Two pinned devices in the Windows 11 taskbar](assets/readme/taskbar.png)
 
