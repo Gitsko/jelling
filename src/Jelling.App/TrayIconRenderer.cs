@@ -22,6 +22,10 @@ public static class TrayIconRenderer
     private const float DigitHeightRatio = 7f / 16;
     private const float GapRatio = 1f / 16;
 
+    private const float SeparatorWidthRatio = 1f / 16;
+    private const float SeparatorMarginRatio = 1f / 16;
+    private const int SeparatorAlpha = 0x60;
+
     private const int SmCxSmIcon = 49;
 
     public static Icon Render(string glyph, Color color) =>
@@ -61,6 +65,24 @@ public static class TrayIconRenderer
             Place(digits, size, digitHeight, top: size - digitHeight);
             graphics.FillPath(glyphBrush, symbol);
             graphics.FillPath(digitBrush, digits);
+        });
+
+    /// <summary>
+    /// A thin vertical line, centered, that sets the device icons apart from the system icons after them.
+    /// </summary>
+    /// <param name="color">The device glyph color.</param>
+    /// <param name="faded">Draws the line translucent, so it stays quieter than the icons.</param>
+    /// <param name="size">From <see cref="SmallIconSize"/>.</param>
+    public static Icon RenderSeparator(Color color, bool faded, int size) =>
+        ToIcon(size, graphics =>
+        {
+            // Whole pixels without anti-aliasing keep the line sharp instead of a blurred two-pixel band.
+            // The same margin above and below keeps it vertically centered at every size
+            graphics.SmoothingMode = SmoothingMode.None;
+            var width = Math.Max(1, (int)MathF.Round(size * SeparatorWidthRatio));
+            var height = size - 2 * Math.Max(1, (int)MathF.Round(size * SeparatorMarginRatio));
+            using var brush = new SolidBrush(faded ? Color.FromArgb(SeparatorAlpha, color) : color);
+            graphics.FillRectangle(brush, (size - width) / 2, (size - height) / 2, width, height);
         });
 
     private static RectangleF Ring(float width)
