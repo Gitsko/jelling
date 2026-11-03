@@ -8,7 +8,7 @@ Jelling Battery Monitor puts a Bluetooth icon in the notification area. Click it
 
 ![The flyout lists the paired devices with their battery level and warning threshold](assets/readme/flyout.png)
 
-Pinned devices sit in the taskbar next to the notification area, here a headset at 100 % and a keyboard at 50 %:
+Pinned devices sit in the taskbar next to the notification area, here a headset at 80 % and a mouse at 100 %:
 
 ![Two pinned devices in the Windows 11 taskbar](assets/readme/taskbar.png)
 
