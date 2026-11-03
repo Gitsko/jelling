@@ -4,9 +4,9 @@ namespace Jelling.Core;
 
 /// <summary>
 /// What the user set: per device whether it gets its own taskbar icon and its low threshold, for all
-/// devices whether the taskbar shows the level as a number, and whether and where the desktop widget
-/// shows. Stored as JSON; a missing file means nothing pinned, default thresholds, numbers shown and no
-/// widget; one that is no valid JSON is kept aside as
+/// devices how the level shows, and whether and where the desktop widget shows. Stored as
+/// JSON; a missing file means nothing pinned, default thresholds, numbers shown and no widget; one that
+/// is no valid JSON is kept aside as
 /// settings.invalid.json rather than overwritten. One that exists but cannot be read (locked, no access)
 /// reads as defaults too, but is never overwritten: each change reads it again first, and saving throws
 /// while it still cannot be read. Changes made meanwhile still apply, and once it reads they are applied
@@ -31,7 +31,7 @@ public sealed class DeviceSettings
         Load();
     }
 
-    public bool ShowPercent { get; private set; } = true;
+    public LevelDisplay LevelDisplay { get; private set; }
 
     public bool ShowWidget { get; private set; }
 
@@ -77,10 +77,10 @@ public sealed class DeviceSettings
         Apply(() => _lowThresholds[deviceId] = threshold);
     }
 
-    public void SetShowPercent(bool show)
+    public void SetLevelDisplay(LevelDisplay display)
     {
         ReloadIfReadFailed();
-        Apply(() => ShowPercent = show);
+        Apply(() => LevelDisplay = display);
     }
 
     public void SetShowWidget(bool show)
@@ -139,7 +139,7 @@ public sealed class DeviceSettings
 
         _pinned.Clear();
         _pinned.UnionWith(stored?.PinnedDevices ?? []);
-        ShowPercent = stored?.ShowPercent ?? true;
+        LevelDisplay = ReadLevelDisplay(stored);
         ShowWidget = stored?.ShowWidget ?? false;
         WidgetLocked = stored?.WidgetLocked ?? false;
         WidgetPosition = stored?.WidgetPosition;
@@ -168,11 +168,28 @@ public sealed class DeviceSettings
         var pending = _path + ".pending";
         using (var stream = new FileStream(pending, FileMode.Create, FileAccess.Write))
         {
-            JsonSerializer.Serialize(stream, new Stored([.. _pinned], _lowThresholds, ShowPercent, ShowWidget, WidgetLocked, WidgetPosition));
+            // ShowPercent keeps an older version, after a downgrade, as close as it gets to the chosen display
+            JsonSerializer.Serialize(stream, new Stored(
+                [.. _pinned], _lowThresholds, LevelDisplay == LevelDisplay.Number, ShowWidget, WidgetLocked, WidgetPosition,
+                LevelDisplay.ToString()));
             stream.Flush(flushToDisk: true);
         }
 
         File.Move(pending, _path, overwrite: true);
+    }
+
+    // Stored as its name: an enum the serializer parses would throw for a hand-edited value and cost the whole
+    // file. Files from before the choice only know whether the number showed
+    private static LevelDisplay ReadLevelDisplay(Stored? stored)
+    {
+        if (Enum.TryParse<LevelDisplay>(stored?.LevelDisplay, ignoreCase: true, out var display)
+            && Enum.IsDefined(display)
+            && !int.TryParse(stored!.LevelDisplay, out _))
+        {
+            return display;
+        }
+
+        return stored?.LevelDisplay is null && stored?.ShowPercent == false ? LevelDisplay.Symbol : LevelDisplay.Number;
     }
 
     private static Stored? Read(string path, out bool failed)
@@ -210,5 +227,5 @@ public sealed class DeviceSettings
     // Older files lack the later fields; they then read as null
     private sealed record Stored(
         Guid[]? PinnedDevices, Dictionary<Guid, int>? LowThresholds, bool? ShowPercent,
-        bool? ShowWidget, bool? WidgetLocked, PixelPoint? WidgetPosition);
+        bool? ShowWidget, bool? WidgetLocked, PixelPoint? WidgetPosition, string? LevelDisplay);
 }

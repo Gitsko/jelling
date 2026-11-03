@@ -5,8 +5,8 @@ using System.Drawing.Text;
 namespace Jelling.App;
 
 /// <summary>
-/// Draws the taskbar element: per device its glyph with the battery level to the right, sized like the
-/// taskbar's own icons and clock, on one faint rounded surface that sets the devices apart from the app
+/// Draws the taskbar element: per device its glyph with the battery level to the right or as a ring around it,
+/// sized like the taskbar's own icons and clock, on one faint rounded surface that sets the devices apart from the app
 /// buttons and the tray.
 /// </summary>
 public static class TaskbarStripRenderer
@@ -15,6 +15,13 @@ public static class TaskbarStripRenderer
     private const float TextSizeEpx = 14;
     private const float PaddingEpx = 8;
     private const float GapEpx = 5;
+
+    // Leaves the glyph room inside and the strip's surface room around it
+    private const float RingSizeEpx = 26;
+    private const float RingWidthEpx = 2.5f;
+
+    // The empty part of the ring, faint enough that the filled part reads as the level
+    private const int RingTrackAlpha = 0x40;
 
     // The surface matches the app buttons' hover highlight: 4 epx from top and bottom, Windows 11's corner radius.
     // The side inset keeps it off the strip's edges, so it does not touch an app button's highlight next to it
@@ -46,9 +53,10 @@ public static class TaskbarStripRenderer
         format.FormatFlags |= StringFormatFlags.NoWrap;
         var padding = (float)(PaddingEpx * scale);
         var gap = (float)(GapEpx * scale);
+        var ringSize = (float)(RingSizeEpx * scale);
 
         // Measured and placed in one pass, so the strip's width cannot drift from what is drawn
-        var layout = new List<(DeviceBadge Badge, string? Text, RectangleF Glyph, RectangleF Level, Rectangle Bounds)>();
+        var layout = new List<(DeviceBadge Badge, string? Text, RectangleF Glyph, RectangleF Level, RectangleF Ring, Rectangle Bounds)>();
         var x = 0f;
         using (var probe = new Bitmap(1, 1))
         using (var measure = Graphics.FromImage(probe))
@@ -59,8 +67,18 @@ public static class TaskbarStripRenderer
                 var start = x;
                 x += padding;
                 var glyphWidth = measure.MeasureString(badge.Glyph, glyphFont, PointF.Empty, format).Width;
-                var glyph = new RectangleF(x, 0, glyphWidth, height);
-                x += glyphWidth;
+
+                // The ring is wider than the glyph; the glyph sits in its middle
+                var ring = RectangleF.Empty;
+                var column = glyphWidth;
+                if (badge.RingPercent is not null)
+                {
+                    column = MathF.Max(glyphWidth, ringSize);
+                    ring = new RectangleF(x + (column - ringSize) / 2, (height - ringSize) / 2, ringSize, ringSize);
+                }
+
+                var glyph = new RectangleF(x + (column - glyphWidth) / 2, 0, glyphWidth, height);
+                x += column;
 
                 var text = badge.Percent is { } percent ? DeviceText.FormatPercent(percent) : null;
                 var level = RectangleF.Empty;
@@ -76,7 +94,7 @@ public static class TaskbarStripRenderer
 
                 x += padding;
                 var bounds = Rectangle.FromLTRB((int)MathF.Round(start), 0, (int)MathF.Round(x), height);
-                layout.Add((badge, text, glyph, level, bounds));
+                layout.Add((badge, text, glyph, level, ring, bounds));
             }
         }
 
@@ -92,8 +110,13 @@ public static class TaskbarStripRenderer
             DrawSurface(graphics, bitmap.Width, height, scale, colors.Normal);
         }
 
-        foreach (var (badge, text, glyph, level, _) in layout)
+        foreach (var (badge, text, glyph, level, ring, _) in layout)
         {
+            if (badge.RingPercent is { } fill)
+            {
+                DrawRing(graphics, ring, (float)(RingWidthEpx * scale), fill, badge.LevelColor, badge.RingTrack);
+            }
+
             using var glyphBrush = new SolidBrush(badge.GlyphColor);
             graphics.DrawString(badge.Glyph, glyphFont, glyphBrush, glyph, format);
             if (text is not null)
@@ -104,6 +127,34 @@ public static class TaskbarStripRenderer
         }
 
         return (bitmap, layout.Select(item => item.Bounds).ToList());
+    }
+
+    /// <summary>A ring filled clockwise from the top in proportion to the level, on a faint full ring.</summary>
+    /// <param name="bounds">The ring's outer edge.</param>
+    /// <param name="track">The color the empty part takes, faded; null leaves it out (high contrast has no translucency).</param>
+    internal static void DrawRing(Graphics graphics, RectangleF bounds, float width, int percent, Color color, Color? track)
+    {
+        // The pen is centered on the path; inset by half its width the ring stays inside the bounds
+        var path = RectangleF.Inflate(bounds, -width / 2, -width / 2);
+        if (track is { } empty)
+        {
+            using var trackPen = new Pen(Color.FromArgb(RingTrackAlpha, empty), width);
+            graphics.DrawEllipse(trackPen, path);
+        }
+
+        if (percent <= 0)
+        {
+            return;
+        }
+
+        using var pen = new Pen(color, width);
+        if (percent >= 100)
+        {
+            graphics.DrawEllipse(pen, path);
+            return;
+        }
+
+        graphics.DrawArc(pen, path, -90, 360f * percent / 100);
     }
 
     // Tinted with the device color, white on a dark taskbar and black on a light one, like the taskbar's own fills.

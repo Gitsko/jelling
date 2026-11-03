@@ -39,13 +39,25 @@ public static class TrayIconRenderer
     /// <summary>
     /// A device glyph with its battery level below, drawn at the tray's real icon size so the digits stay sharp.
     /// </summary>
-    /// <param name="percent">Null draws only the glyph.</param>
-    /// <param name="levelColor">For the digits, so a low level can stand out from the glyph.</param>
+    /// <param name="percent">The digits below the glyph; null draws none.</param>
+    /// <param name="levelColor">For the digits or the ring, so a low level can stand out from the glyph.</param>
+    /// <param name="ringPercent">The level a ring around the glyph is filled to; null draws no ring.</param>
+    /// <param name="track">The color the ring's empty part takes, faded; null leaves it out.</param>
     /// <param name="size">From <see cref="SmallIconSize"/>.</param>
-    public static Icon RenderDevice(string glyph, int? percent, Color color, Color levelColor, int size) =>
+    public static Icon RenderDevice(string glyph, int? percent, Color color, Color levelColor, int? ringPercent, Color? track, int size) =>
         ToIcon(size, graphics =>
         {
             using var glyphBrush = new SolidBrush(color);
+            if (ringPercent is { } fill)
+            {
+                // Same proportions as the app's own tray icon: the ring at the edge, the glyph inside it
+                TaskbarStripRenderer.DrawRing(graphics, new RectangleF(0, 0, size, size), MathF.Max(1, size * RingWidth / Size), fill, levelColor, track);
+                using var inner = Outline(glyph, DeviceText.GlyphFont, FontStyle.Regular, size * GlyphHeight / Size, size * GlyphHeight / Size);
+                Place(inner, size, size, top: 0);
+                graphics.FillPath(glyphBrush, inner);
+                return;
+            }
+
             if (percent is not { } level)
             {
                 using var alone = Outline(glyph, DeviceText.GlyphFont, FontStyle.Regular, size * 0.75f, size);

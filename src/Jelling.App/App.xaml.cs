@@ -82,7 +82,8 @@ public partial class App : Application
 
         var title = Strings.Get("FlyoutHeader/Text");
         var menu = TrayMenu.Create(
-            title, () => _settings.ShowPercent, SetShowPercent, () => _settings.ShowWidget, SetShowWidget,
+            title, () => _settings.LevelDisplay, display => Redraw(() => _settings.SetLevelDisplay(display)),
+            () => _settings.ShowWidget, show => Redraw(() => _settings.SetShowWidget(show)),
             () => _settings.WidgetLocked, locked => Save(() => _settings.SetWidgetLocked(locked)), Shutdown, Guard);
 
         _trayIcon = new TaskbarIcon
@@ -265,16 +266,9 @@ public partial class App : Application
     private void ShowLastDevices() => Guard("Redraw", ShowDevices);
 
     // Raised from the menu
-    private void SetShowPercent(bool show)
+    private void Redraw(Action change)
     {
-        Save(() => _settings.SetShowPercent(show));
-        Guard("Redraw", ShowInTaskbar);
-    }
-
-    // Raised from the menu
-    private void SetShowWidget(bool show)
-    {
-        Save(() => _settings.SetShowWidget(show));
+        Save(change);
         Guard("Redraw", ShowInTaskbar);
     }
 

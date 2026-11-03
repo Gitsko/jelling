@@ -193,5 +193,6 @@ public sealed class DeviceTrayIcons(Action onClick) : IDisposable
         TrayIconRenderer.RenderSeparator(colors.Normal, faded: !colors.IsHighContrast, size);
 
     private static Icon Render(DeviceBadge badge, int size) =>
-        TrayIconRenderer.RenderDevice(badge.Glyph, badge.Percent, badge.GlyphColor, badge.LevelColor, size);
+        TrayIconRenderer.RenderDevice(
+            badge.Glyph, badge.Percent, badge.GlyphColor, badge.LevelColor, badge.RingPercent, badge.RingTrack, size);
 }
