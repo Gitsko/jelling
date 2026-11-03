@@ -9,8 +9,12 @@
   <data name="SeparatorToolTip" xml:space="preserve"><value>Jelling – Trennlinie</value></data>
   <data name="Exit" xml:space="preserve"><value>Beenden</value></data>
   <data name="AutoStart" xml:space="preserve"><value>Mit Windows starten</value></data>
-  <data name="ShowPercent" xml:space="preserve"><value>Akkustand als Zahl in der Taskleiste</value></data>
+  <data name="LevelDisplay" xml:space="preserve"><value>Akkustand anzeigen als</value></data>
+  <data name="LevelDisplayNumber" xml:space="preserve"><value>Zahl</value></data>
+  <data name="LevelDisplayRing" xml:space="preserve"><value>Ring um das Symbol</value></data>
+  <data name="LevelDisplaySymbol" xml:space="preserve"><value>Nur Symbol</value></data>
   <data name="ShowWidget" xml:space="preserve"><value>Widget auf dem Desktop</value></data>
+  <data name="WidgetScale" xml:space="preserve"><value>Widget-Größe</value></data>
   <data name="LockWidget" xml:space="preserve"><value>Widget-Position fixieren</value></data>
   <data name="Pin" xml:space="preserve"><value>In der Taskleiste anzeigen</value></data>
   <data name="Unpin" xml:space="preserve"><value>Aus der Taskleiste entfernen</value></data>

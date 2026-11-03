@@ -20,20 +20,18 @@ internal sealed record TaskbarTheme(Color Tray, DeviceColors Devices)
         {
             var windowText = uiSettings.UIElementColor(UIElementType.WindowText);
             var text = Color.FromArgb(windowText.R, windowText.G, windowText.B);
-            return new TaskbarTheme(text, new DeviceColors(text, text));
+            return new TaskbarTheme(text, new DeviceColors(text, text, text));
         }
 
         // Dark blue loses its contrast on a dark taskbar, so that one gets a light blue. Device icons look like
         // the system's own tray icons: black or white, no brand color. Low levels take the Windows critical
         // colors: dark red on a light taskbar, light red on a dark one, where dark red would be too faint for
-        // small digits
-        return TaskbarIsLight()
-            ? new TaskbarTheme(
-                Color.FromArgb(0x00, 0x3A, 0x8C),
-                new DeviceColors(Color.Black, Color.FromArgb(0xC4, 0x2B, 0x1C)))
-            : new TaskbarTheme(
-                Color.FromArgb(0x6C, 0xB4, 0xFF),
-                new DeviceColors(Color.White, Color.FromArgb(0xFF, 0x99, 0xA4)));
+        // small digits. The level ring takes the app's blue
+        var light = TaskbarIsLight();
+        var blue = light ? Color.FromArgb(0x00, 0x3A, 0x8C) : Color.FromArgb(0x6C, 0xB4, 0xFF);
+        return light
+            ? new TaskbarTheme(blue, new DeviceColors(Color.Black, Color.FromArgb(0xC4, 0x2B, 0x1C), blue))
+            : new TaskbarTheme(blue, new DeviceColors(Color.White, Color.FromArgb(0xFF, 0x99, 0xA4), blue));
     }
 
     // The taskbar follows the system theme, not the app theme; line glyphs need its contrast color

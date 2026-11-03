@@ -10,15 +10,16 @@ public static class BadgeContent
 
     /// <summary>
     /// Without the number the glyph itself carries the warning color. When there is no separate warning color
-    /// (high contrast), a low level keeps its number instead.
+    /// (high contrast), a low level keeps its number instead. A ring needs no fallback: its fill shows the level
+    /// without color.
     /// </summary>
-    public static bool ShowsNumber(bool showPercent, bool isLow, bool hasLowColor) =>
-        showPercent || (isLow && !hasLowColor);
+    public static bool ShowsNumber(LevelDisplay display, bool isLow, bool hasLowColor) =>
+        display == LevelDisplay.Number || (display == LevelDisplay.Symbol && isLow && !hasLowColor);
 
     /// <summary>What a pinned device's badge shows for its level.</summary>
     /// <param name="percent">Null when the device reports no level; the badge is then the glyph alone.</param>
     /// <param name="lowThreshold">One of <see cref="BatteryLevel.LowThresholds"/>.</param>
-    public static BadgeLook For(int? percent, int lowThreshold, bool showPercent, bool hasLowColor)
+    public static BadgeLook For(int? percent, int lowThreshold, LevelDisplay display, bool hasLowColor)
     {
         if (percent is not { } level)
         {
@@ -26,8 +27,13 @@ public static class BadgeContent
         }
 
         var isLow = BatteryLevel.IsLow(level, lowThreshold);
-        return ShowsNumber(showPercent, isLow, hasLowColor)
-            ? new BadgeLook(level, isLow, GlyphIsLow: false)
+        if (ShowsNumber(display, isLow, hasLowColor))
+        {
+            return new BadgeLook(level, isLow, GlyphIsLow: false);
+        }
+
+        return display == LevelDisplay.Ring
+            ? new BadgeLook(null, isLow, GlyphIsLow: false, RingPercent: level)
             : new BadgeLook(null, isLow, GlyphIsLow: isLow);
     }
 
@@ -54,6 +60,7 @@ public static class BadgeContent
 }
 
 /// <param name="ShownPercent">The number drawn next to the glyph; null draws none.</param>
-/// <param name="IsLow">Whether the level is at or below the threshold; a shown number then takes the warning color.</param>
+/// <param name="IsLow">Whether the level is at or below the threshold; a shown number or ring then takes the warning color.</param>
 /// <param name="GlyphIsLow">Whether the glyph itself takes the warning color, standing in for the number.</param>
-public readonly record struct BadgeLook(int? ShownPercent, bool IsLow, bool GlyphIsLow);
+/// <param name="RingPercent">The level the ring around the glyph is filled to; null draws no ring.</param>
+public readonly record struct BadgeLook(int? ShownPercent, bool IsLow, bool GlyphIsLow, int? RingPercent = null);

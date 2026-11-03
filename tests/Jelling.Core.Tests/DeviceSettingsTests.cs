@@ -108,26 +108,85 @@ public sealed class DeviceSettingsTests : IDisposable
 
         Assert.True(settings.IsPinned(Headset));
         Assert.Equal(BatteryLevel.DefaultLowThreshold, settings.LowThreshold(Headset));
-        Assert.True(settings.ShowPercent);
+        Assert.Equal(LevelDisplay.Number, settings.LevelDisplay);
     }
 
     [Fact]
-    public void ShowsPercentByDefault()
+    public void ShowsTheNumberByDefault()
     {
-        Assert.True(new DeviceSettings(SettingsPath).ShowPercent);
+        Assert.Equal(LevelDisplay.Number, new DeviceSettings(SettingsPath).LevelDisplay);
     }
 
     [Fact]
-    public void HiddenPercentSurvivesReload()
+    public void LevelDisplaySurvivesReload()
     {
         var settings = new DeviceSettings(SettingsPath);
-        settings.SetShowPercent(false);
+        settings.SetLevelDisplay(LevelDisplay.Symbol);
         settings.TogglePin(Headset);
 
         var reloaded = new DeviceSettings(SettingsPath);
 
-        Assert.False(reloaded.ShowPercent);
+        Assert.Equal(LevelDisplay.Symbol, reloaded.LevelDisplay);
         Assert.True(reloaded.IsPinned(Headset));
+    }
+
+    [Theory]
+    [InlineData("""{"ShowPercent":false}""", LevelDisplay.Symbol)]
+    [InlineData("""{"ShowPercent":true}""", LevelDisplay.Number)]
+    [InlineData("""{"LevelDisplay":"Ring","ShowPercent":false}""", LevelDisplay.Ring)]
+    [InlineData("""{"LevelDisplay":"ring"}""", LevelDisplay.Ring)]
+    public void ReadsTheLevelDisplayOrTheFormerPercentSetting(string json, LevelDisplay expected)
+    {
+        Directory.CreateDirectory(_folder);
+        File.WriteAllText(SettingsPath, json);
+
+        Assert.Equal(expected, new DeviceSettings(SettingsPath).LevelDisplay);
+    }
+
+    [Theory]
+    [InlineData("Bogus")]
+    [InlineData("7")]
+    public void UnknownLevelDisplayReadsAsNumberAndKeepsTheRest(string stored)
+    {
+        Directory.CreateDirectory(_folder);
+        File.WriteAllText(SettingsPath, $$"""{"PinnedDevices":["{{Headset}}"],"LevelDisplay":"{{stored}}"}""");
+
+        var settings = new DeviceSettings(SettingsPath);
+
+        Assert.Equal(LevelDisplay.Number, settings.LevelDisplay);
+        Assert.True(settings.IsPinned(Headset));
+        Assert.False(File.Exists(Path.ChangeExtension(SettingsPath, ".invalid.json")));
+    }
+
+    [Fact]
+    public void WidgetHasItsNormalSizeByDefault()
+    {
+        Assert.Equal(1, new DeviceSettings(SettingsPath).WidgetScale);
+    }
+
+    [Fact]
+    public void WidgetScaleSurvivesReload()
+    {
+        new DeviceSettings(SettingsPath).SetWidgetScale(3);
+
+        Assert.Equal(3, new DeviceSettings(SettingsPath).WidgetScale);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(5)]
+    public void RejectsWidgetScalesThatAreNotOffered(int scale)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new DeviceSettings(SettingsPath).SetWidgetScale(scale));
+    }
+
+    [Fact]
+    public void IgnoresAStoredWidgetScaleThatIsNotOffered()
+    {
+        Directory.CreateDirectory(_folder);
+        File.WriteAllText(SettingsPath, """{"WidgetScale":7}""");
+
+        Assert.Equal(1, new DeviceSettings(SettingsPath).WidgetScale);
     }
 
     [Fact]
@@ -166,7 +225,7 @@ public sealed class DeviceSettingsTests : IDisposable
         Assert.False(settings.ShowWidget);
         Assert.False(settings.WidgetLocked);
         Assert.Null(settings.WidgetPosition);
-        Assert.False(settings.ShowPercent);
+        Assert.Equal(LevelDisplay.Symbol, settings.LevelDisplay);
     }
 
     [Fact]
@@ -234,7 +293,7 @@ public sealed class DeviceSettingsTests : IDisposable
     }
 
     [Fact]
-    public void FileLockedAtStartIsReadBeforeHidingThePercent()
+    public void FileLockedAtStartIsReadBeforeChangingTheLevelDisplay()
     {
         new DeviceSettings(SettingsPath).TogglePin(Headset);
         DeviceSettings settings;
@@ -243,11 +302,11 @@ public sealed class DeviceSettingsTests : IDisposable
             settings = new DeviceSettings(SettingsPath);
         }
 
-        settings.SetShowPercent(false);
+        settings.SetLevelDisplay(LevelDisplay.Symbol);
 
         var reloaded = new DeviceSettings(SettingsPath);
         Assert.True(reloaded.IsPinned(Headset));
-        Assert.False(reloaded.ShowPercent);
+        Assert.Equal(LevelDisplay.Symbol, reloaded.LevelDisplay);
     }
 
     [Fact]
@@ -262,14 +321,14 @@ public sealed class DeviceSettingsTests : IDisposable
             Assert.Throws<IOException>(() => settings.SetLowThreshold(Mouse, 40));
         }
 
-        settings.SetShowPercent(false);
+        settings.SetLevelDisplay(LevelDisplay.Symbol);
 
         Assert.True(settings.IsPinned(Mouse));
         var reloaded = new DeviceSettings(SettingsPath);
         Assert.True(reloaded.IsPinned(Headset));
         Assert.True(reloaded.IsPinned(Mouse));
         Assert.Equal(40, reloaded.LowThreshold(Mouse));
-        Assert.False(reloaded.ShowPercent);
+        Assert.Equal(LevelDisplay.Symbol, reloaded.LevelDisplay);
     }
 
     [Fact]
@@ -284,7 +343,7 @@ public sealed class DeviceSettingsTests : IDisposable
             Assert.Throws<IOException>(() => settings.TogglePin(Headset));
         }
 
-        settings.SetShowPercent(false);
+        settings.SetLevelDisplay(LevelDisplay.Symbol);
 
         Assert.True(new DeviceSettings(SettingsPath).IsPinned(Headset));
     }
