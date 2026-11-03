@@ -3,9 +3,10 @@ using System.Text.Json;
 namespace Jelling.Core;
 
 /// <summary>
-/// What the user set: per device whether it gets its own taskbar icon and its low threshold, and for all
-/// devices whether the taskbar shows the level as a number. Stored as JSON; a missing file means nothing
-/// pinned, default thresholds and numbers shown; one that is no valid JSON is kept aside as
+/// What the user set: per device whether it gets its own taskbar icon and its low threshold, for all
+/// devices whether the taskbar shows the level as a number, and whether and where the desktop widget
+/// shows. Stored as JSON; a missing file means nothing pinned, default thresholds, numbers shown and no
+/// widget; one that is no valid JSON is kept aside as
 /// settings.invalid.json rather than overwritten. One that exists but cannot be read (locked, no access)
 /// reads as defaults too, but is never overwritten: each change reads it again first, and saving throws
 /// while it still cannot be read. Changes made meanwhile still apply, and once it reads they are applied
@@ -31,6 +32,14 @@ public sealed class DeviceSettings
     }
 
     public bool ShowPercent { get; private set; } = true;
+
+    public bool ShowWidget { get; private set; }
+
+    /// <summary>True when the widget stays where it is instead of moving with a drag.</summary>
+    public bool WidgetLocked { get; private set; }
+
+    /// <summary>The widget's top left corner in physical screen pixels; null until it was first moved.</summary>
+    public PixelPoint? WidgetPosition { get; private set; }
 
     public bool IsPinned(Guid deviceId) => _pinned.Contains(deviceId);
 
@@ -74,6 +83,24 @@ public sealed class DeviceSettings
         Apply(() => ShowPercent = show);
     }
 
+    public void SetShowWidget(bool show)
+    {
+        ReloadIfReadFailed();
+        Apply(() => ShowWidget = show);
+    }
+
+    public void SetWidgetLocked(bool locked)
+    {
+        ReloadIfReadFailed();
+        Apply(() => WidgetLocked = locked);
+    }
+
+    public void SetWidgetPosition(PixelPoint position)
+    {
+        ReloadIfReadFailed();
+        Apply(() => WidgetPosition = position);
+    }
+
     // E.g. a virus scanner held the file at startup; once it can be read, the change builds on what it holds
     private void ReloadIfReadFailed()
     {
@@ -113,6 +140,9 @@ public sealed class DeviceSettings
         _pinned.Clear();
         _pinned.UnionWith(stored?.PinnedDevices ?? []);
         ShowPercent = stored?.ShowPercent ?? true;
+        ShowWidget = stored?.ShowWidget ?? false;
+        WidgetLocked = stored?.WidgetLocked ?? false;
+        WidgetPosition = stored?.WidgetPosition;
 
         // A hand-edited value outside the offered ones would leave the flyout's selection empty
         _lowThresholds.Clear();
@@ -138,7 +168,7 @@ public sealed class DeviceSettings
         var pending = _path + ".pending";
         using (var stream = new FileStream(pending, FileMode.Create, FileAccess.Write))
         {
-            JsonSerializer.Serialize(stream, new Stored([.. _pinned], _lowThresholds, ShowPercent));
+            JsonSerializer.Serialize(stream, new Stored([.. _pinned], _lowThresholds, ShowPercent, ShowWidget, WidgetLocked, WidgetPosition));
             stream.Flush(flushToDisk: true);
         }
 
@@ -178,5 +208,7 @@ public sealed class DeviceSettings
     }
 
     // Older files lack the later fields; they then read as null
-    private sealed record Stored(Guid[]? PinnedDevices, Dictionary<Guid, int>? LowThresholds, bool? ShowPercent);
+    private sealed record Stored(
+        Guid[]? PinnedDevices, Dictionary<Guid, int>? LowThresholds, bool? ShowPercent,
+        bool? ShowWidget, bool? WidgetLocked, PixelPoint? WidgetPosition);
 }
