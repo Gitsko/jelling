@@ -37,8 +37,6 @@ The screenshots show the German interface; on an English Windows the app is in E
 
 ### Desktop widget
 
-Not in v1.1.0 yet; it comes with the next release.
-
 - "Widget on the desktop" in the right-click menu shows the pinned devices a second time, in a small frame on the desktop. It stays behind your windows and shows when you press Win+D
 - Drag it where you want it. It keeps that place after a restart and moves back onto a screen if its monitor is gone
 - "Lock widget position" in the same menu stops it from moving. Clicking it opens the flyout
@@ -91,7 +89,7 @@ Jelling reads the battery levels from Windows and keeps everything on your PC. T
 
 ## Code signing policy
 
-Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/). Releases up to and including v1.1.0 are not signed.
+Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/). Releases up to and including v1.2.0 are not signed.
 
 Only files built by this repository's release workflow from a tagged commit get signed, and each signing request is approved by hand.
 
