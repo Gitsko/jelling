@@ -28,6 +28,7 @@ public partial class App : Application
     private DeviceChangeWatcher? _watcher;
     private DeviceTrayIcons? _deviceIcons;
     private TaskbarElement? _taskbarElement;
+    private DesktopWidget? _desktopWidget;
     private ToastService? _toasts;
     private UpdateChecker? _updates;
     private IReadOnlyList<BatteryDevice> _devices = [];
@@ -68,6 +69,7 @@ public partial class App : Application
         _deviceIcons = new DeviceTrayIcons(ToggleFlyout);
         _taskbarElement = new TaskbarElement(ToggleFlyout);
         _taskbarElement.AvailabilityChanged += (_, _) => ShowInTaskbarAfterRecheck();
+        _desktopWidget = new DesktopWidget(ToggleFlyout, () => _settings.WidgetLocked, position => Save(() => _settings.SetWidgetPosition(position)));
         _toasts = new ToastService(() => dispatcher.TryEnqueue(OpenFlyout));
         _updates = new UpdateChecker();
         _updates.UpdateAvailable += (_, latest) => _flyout.ShowUpdate(latest);
@@ -79,7 +81,9 @@ public partial class App : Application
         _watcher.Start();
 
         var title = Strings.Get("FlyoutHeader/Text");
-        var menu = TrayMenu.Create(title, () => _settings.ShowPercent, SetShowPercent, Shutdown, Guard);
+        var menu = TrayMenu.Create(
+            title, () => _settings.ShowPercent, SetShowPercent, () => _settings.ShowWidget, SetShowWidget,
+            () => _settings.WidgetLocked, locked => Save(() => _settings.SetWidgetLocked(locked)), Shutdown, Guard);
 
         _trayIcon = new TaskbarIcon
         {
@@ -222,7 +226,8 @@ public partial class App : Application
         ShowInTaskbar();
     }
 
-    // The tray icons stand in while the taskbar has no room for the element or Explorer is restarting
+    // The tray icons stand in while the taskbar has no room for the element or Explorer is restarting.
+    // The desktop widget shows the same devices, whichever of the two has them
     private void ShowInTaskbar()
     {
         if (_shuttingDown)
@@ -233,6 +238,7 @@ public partial class App : Application
         var badges = DeviceBadge.ForPinned(_devices, _settings, _theme.Devices);
         var inElement = _taskbarElement?.Show(badges, _theme.Devices) == true;
         _deviceIcons?.Update(inElement ? [] : badges, _theme.Devices);
+        _desktopWidget?.Show(_settings.ShowWidget ? badges : [], _theme.Devices, _settings.WidgetPosition);
     }
 
     // Raised from the element's timer
@@ -262,6 +268,13 @@ public partial class App : Application
     private void SetShowPercent(bool show)
     {
         Save(() => _settings.SetShowPercent(show));
+        Guard("Redraw", ShowInTaskbar);
+    }
+
+    // Raised from the menu
+    private void SetShowWidget(bool show)
+    {
+        Save(() => _settings.SetShowWidget(show));
         Guard("Redraw", ShowInTaskbar);
     }
 
@@ -329,6 +342,7 @@ public partial class App : Application
             Guard("Shutdown", () => _toasts?.Dispose());
             Guard("Shutdown", () => _updates?.Dispose());
             Guard("Shutdown", () => _taskbarElement?.Dispose());
+            Guard("Shutdown", () => _desktopWidget?.Dispose());
             Guard("Shutdown", () => _deviceIcons?.Dispose());
             Guard("Shutdown", () => _trayIcon?.Dispose());
             Guard("Shutdown", () => _flyout?.Dispose());

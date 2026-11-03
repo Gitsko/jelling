@@ -10,6 +10,8 @@
   <data name="Exit" xml:space="preserve"><value>Exit</value></data>
   <data name="AutoStart" xml:space="preserve"><value>Start with Windows</value></data>
   <data name="ShowPercent" xml:space="preserve"><value>Show battery level as number in taskbar</value></data>
+  <data name="ShowWidget" xml:space="preserve"><value>Widget on the desktop</value></data>
+  <data name="LockWidget" xml:space="preserve"><value>Lock widget position</value></data>
   <data name="Pin" xml:space="preserve"><value>Show in taskbar</value></data>
   <data name="Unpin" xml:space="preserve"><value>Remove from taskbar</value></data>
   <data name="LowThresholdOff" xml:space="preserve"><value>Off</value></data>

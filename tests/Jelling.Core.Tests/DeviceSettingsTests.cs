@@ -131,6 +131,45 @@ public sealed class DeviceSettingsTests : IDisposable
     }
 
     [Fact]
+    public void WidgetIsOffUnlockedWithoutPositionByDefault()
+    {
+        var settings = new DeviceSettings(SettingsPath);
+
+        Assert.False(settings.ShowWidget);
+        Assert.False(settings.WidgetLocked);
+        Assert.Null(settings.WidgetPosition);
+    }
+
+    [Fact]
+    public void WidgetSettingsSurviveReload()
+    {
+        var settings = new DeviceSettings(SettingsPath);
+        settings.SetShowWidget(true);
+        settings.SetWidgetLocked(true);
+        settings.SetWidgetPosition(new PixelPoint(-1500, 600));
+
+        var reloaded = new DeviceSettings(SettingsPath);
+
+        Assert.True(reloaded.ShowWidget);
+        Assert.True(reloaded.WidgetLocked);
+        Assert.Equal(new PixelPoint(-1500, 600), reloaded.WidgetPosition);
+    }
+
+    [Fact]
+    public void FileFromBeforeTheWidgetReadsAsWidgetOff()
+    {
+        Directory.CreateDirectory(_folder);
+        File.WriteAllText(SettingsPath, $$"""{"PinnedDevices":["{{Headset}}"],"ShowPercent":false}""");
+
+        var settings = new DeviceSettings(SettingsPath);
+
+        Assert.False(settings.ShowWidget);
+        Assert.False(settings.WidgetLocked);
+        Assert.Null(settings.WidgetPosition);
+        Assert.False(settings.ShowPercent);
+    }
+
+    [Fact]
     public void IgnoresStoredThresholdsThatAreNotOffered()
     {
         Directory.CreateDirectory(_folder);
