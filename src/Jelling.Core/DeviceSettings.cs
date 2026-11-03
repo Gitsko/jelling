@@ -4,7 +4,7 @@ namespace Jelling.Core;
 
 /// <summary>
 /// What the user set: per device whether it gets its own taskbar icon and its low threshold, for all
-/// devices how the level shows, and whether and where the desktop widget shows. Stored as
+/// devices how the level shows, and whether, where and how large the desktop widget shows. Stored as
 /// JSON; a missing file means nothing pinned, default thresholds, numbers shown and no widget; one that
 /// is no valid JSON is kept aside as
 /// settings.invalid.json rather than overwritten. One that exists but cannot be read (locked, no access)
@@ -31,6 +31,9 @@ public sealed class DeviceSettings
         Load();
     }
 
+    /// <summary>The sizes the widget is offered in, as multiples of its normal size.</summary>
+    public static IReadOnlyList<int> WidgetScales { get; } = [1, 2, 3, 4];
+
     public LevelDisplay LevelDisplay { get; private set; }
 
     public bool ShowWidget { get; private set; }
@@ -40,6 +43,9 @@ public sealed class DeviceSettings
 
     /// <summary>The widget's top left corner in physical screen pixels; null until it was first moved.</summary>
     public PixelPoint? WidgetPosition { get; private set; }
+
+    /// <summary>One of <see cref="WidgetScales"/>.</summary>
+    public int WidgetScale { get; private set; } = 1;
 
     public bool IsPinned(Guid deviceId) => _pinned.Contains(deviceId);
 
@@ -101,6 +107,18 @@ public sealed class DeviceSettings
         Apply(() => WidgetPosition = position);
     }
 
+    /// <param name="scale">One of <see cref="WidgetScales"/>.</param>
+    public void SetWidgetScale(int scale)
+    {
+        if (!WidgetScales.Contains(scale))
+        {
+            throw new ArgumentOutOfRangeException(nameof(scale), scale, "Not one of the offered widget sizes");
+        }
+
+        ReloadIfReadFailed();
+        Apply(() => WidgetScale = scale);
+    }
+
     // E.g. a virus scanner held the file at startup; once it can be read, the change builds on what it holds
     private void ReloadIfReadFailed()
     {
@@ -143,6 +161,7 @@ public sealed class DeviceSettings
         ShowWidget = stored?.ShowWidget ?? false;
         WidgetLocked = stored?.WidgetLocked ?? false;
         WidgetPosition = stored?.WidgetPosition;
+        WidgetScale = stored?.WidgetScale is { } scale && WidgetScales.Contains(scale) ? scale : 1;
 
         // A hand-edited value outside the offered ones would leave the flyout's selection empty
         _lowThresholds.Clear();
@@ -171,7 +190,7 @@ public sealed class DeviceSettings
             // ShowPercent keeps an older version, after a downgrade, as close as it gets to the chosen display
             JsonSerializer.Serialize(stream, new Stored(
                 [.. _pinned], _lowThresholds, LevelDisplay == LevelDisplay.Number, ShowWidget, WidgetLocked, WidgetPosition,
-                LevelDisplay.ToString()));
+                LevelDisplay.ToString(), WidgetScale));
             stream.Flush(flushToDisk: true);
         }
 
@@ -227,5 +246,5 @@ public sealed class DeviceSettings
     // Older files lack the later fields; they then read as null
     private sealed record Stored(
         Guid[]? PinnedDevices, Dictionary<Guid, int>? LowThresholds, bool? ShowPercent,
-        bool? ShowWidget, bool? WidgetLocked, PixelPoint? WidgetPosition, string? LevelDisplay);
+        bool? ShowWidget, bool? WidgetLocked, PixelPoint? WidgetPosition, string? LevelDisplay, int? WidgetScale);
 }

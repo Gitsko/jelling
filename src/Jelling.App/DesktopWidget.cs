@@ -19,7 +19,7 @@ public sealed partial class DesktopWidget : IDisposable
 {
     private const string ClassName = "JellingDesktopWidget";
 
-    // As tall as the taskbar, so the devices look the same in both places
+    // As tall as the taskbar at its normal size, so the devices look the same in both places
     private const double HeightEpx = 48;
     private const double MarginEpx = 24;
 
@@ -34,6 +34,7 @@ public sealed partial class DesktopWidget : IDisposable
     private IReadOnlyList<DeviceBadge> _badges = [];
     private DeviceColors? _colors;
     private PixelPoint? _stored;
+    private int _sizeFactor = 1;
     private Bitmap? _strip;
     private IReadOnlyList<Rectangle> _badgeBounds = [];
     private uint _stripDpi;
@@ -81,12 +82,14 @@ public sealed partial class DesktopWidget : IDisposable
 
     /// <summary>Shows the badges on the desktop; an empty list removes the widget.</summary>
     /// <param name="stored">Where the user left the widget; null until it was first moved.</param>
-    public void Show(IReadOnlyList<DeviceBadge> badges, DeviceColors colors, PixelPoint? stored)
+    /// <param name="sizeFactor">One of <see cref="DeviceSettings.WidgetScales"/>; it keeps its top left corner as it grows.</param>
+    public void Show(IReadOnlyList<DeviceBadge> badges, DeviceColors colors, PixelPoint? stored, int sizeFactor)
     {
-        if (!badges.SequenceEqual(_badges) || colors != _colors)
+        if (!badges.SequenceEqual(_badges) || colors != _colors || sizeFactor != _sizeFactor)
         {
             _badges = badges;
             _colors = colors;
+            _sizeFactor = sizeFactor;
             ReleaseStrip();
         }
 
@@ -165,7 +168,7 @@ public sealed partial class DesktopWidget : IDisposable
         if (_strip is null || _stripDpi != dpi)
         {
             ReleaseStrip();
-            var scale = dpi / 96.0;
+            var scale = dpi / 96.0 * _sizeFactor;
             (_strip, _badgeBounds) = TaskbarStripRenderer.Render(_badges, _colors!, (int)Math.Round(HeightEpx * scale), scale);
             _stripDpi = dpi;
         }

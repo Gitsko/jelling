@@ -84,6 +84,7 @@ public partial class App : Application
         var menu = TrayMenu.Create(
             title, () => _settings.LevelDisplay, display => Redraw(() => _settings.SetLevelDisplay(display)),
             () => _settings.ShowWidget, show => Redraw(() => _settings.SetShowWidget(show)),
+            () => _settings.WidgetScale, scale => Redraw(() => _settings.SetWidgetScale(scale)),
             () => _settings.WidgetLocked, locked => Save(() => _settings.SetWidgetLocked(locked)), Shutdown, Guard);
 
         _trayIcon = new TaskbarIcon
@@ -239,7 +240,7 @@ public partial class App : Application
         var badges = DeviceBadge.ForPinned(_devices, _settings, _theme.Devices);
         var inElement = _taskbarElement?.Show(badges, _theme.Devices) == true;
         _deviceIcons?.Update(inElement ? [] : badges, _theme.Devices);
-        _desktopWidget?.Show(_settings.ShowWidget ? badges : [], _theme.Devices, _settings.WidgetPosition);
+        _desktopWidget?.Show(_settings.ShowWidget ? badges : [], _theme.Devices, _settings.WidgetPosition, _settings.WidgetScale);
     }
 
     // Raised from the element's timer

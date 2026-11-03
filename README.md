@@ -39,7 +39,8 @@ The screenshots show the German interface; on an English Windows the app is in E
 
 - "Widget on the desktop" in the right-click menu shows the pinned devices a second time, in a small frame on the desktop. It stays behind your windows and shows when you press Win+D
 - Drag it where you want it. It keeps that place after a restart and moves back onto a screen if its monitor is gone
-- "Lock widget position" in the same menu stops it from moving. Clicking it opens the flyout
+- "Widget size" in the same menu makes it up to four times its normal size
+- "Lock widget position" stops it from moving. Clicking it opens the flyout
 - With no pinned device connected, the widget is hidden
 
 ### Warnings

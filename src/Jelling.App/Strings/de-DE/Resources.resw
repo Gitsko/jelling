@@ -14,6 +14,7 @@
   <data name="LevelDisplayRing" xml:space="preserve"><value>Ring um das Symbol</value></data>
   <data name="LevelDisplaySymbol" xml:space="preserve"><value>Nur Symbol</value></data>
   <data name="ShowWidget" xml:space="preserve"><value>Widget auf dem Desktop</value></data>
+  <data name="WidgetScale" xml:space="preserve"><value>Widget-Größe</value></data>
   <data name="LockWidget" xml:space="preserve"><value>Widget-Position fixieren</value></data>
   <data name="Pin" xml:space="preserve"><value>In der Taskleiste anzeigen</value></data>
   <data name="Unpin" xml:space="preserve"><value>Aus der Taskleiste entfernen</value></data>

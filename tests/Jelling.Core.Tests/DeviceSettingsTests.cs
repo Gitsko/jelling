@@ -159,6 +159,37 @@ public sealed class DeviceSettingsTests : IDisposable
     }
 
     [Fact]
+    public void WidgetHasItsNormalSizeByDefault()
+    {
+        Assert.Equal(1, new DeviceSettings(SettingsPath).WidgetScale);
+    }
+
+    [Fact]
+    public void WidgetScaleSurvivesReload()
+    {
+        new DeviceSettings(SettingsPath).SetWidgetScale(3);
+
+        Assert.Equal(3, new DeviceSettings(SettingsPath).WidgetScale);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(5)]
+    public void RejectsWidgetScalesThatAreNotOffered(int scale)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new DeviceSettings(SettingsPath).SetWidgetScale(scale));
+    }
+
+    [Fact]
+    public void IgnoresAStoredWidgetScaleThatIsNotOffered()
+    {
+        Directory.CreateDirectory(_folder);
+        File.WriteAllText(SettingsPath, """{"WidgetScale":7}""");
+
+        Assert.Equal(1, new DeviceSettings(SettingsPath).WidgetScale);
+    }
+
+    [Fact]
     public void WidgetIsOffUnlockedWithoutPositionByDefault()
     {
         var settings = new DeviceSettings(SettingsPath);
