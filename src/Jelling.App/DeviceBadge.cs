@@ -4,7 +4,11 @@ using Jelling.Core;
 namespace Jelling.App;
 
 /// <param name="Low">For the level at or below the device's low threshold.</param>
-public sealed record DeviceColors(Color Normal, Color Low);
+public sealed record DeviceColors(Color Normal, Color Low)
+{
+    /// <summary>High contrast has one text color for everything, low levels included.</summary>
+    public bool IsHighContrast => Low == Normal;
+}
 
 /// <summary>
 /// What the taskbar shows for one pinned, connected device, in the taskbar element or as a tray icon.

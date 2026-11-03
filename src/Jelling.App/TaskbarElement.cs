@@ -30,6 +30,7 @@ public sealed partial class TaskbarElement : IDisposable
     private readonly WndProc _wndProc;
 
     private IReadOnlyList<DeviceBadge> _badges = [];
+    private DeviceColors? _colors;
     private Bitmap? _strip;
     private IReadOnlyList<Rectangle> _badgeBounds = [];
     private (uint Dpi, int Height) _stripRenderedFor;
@@ -99,11 +100,13 @@ public sealed partial class TaskbarElement : IDisposable
 
     /// <summary>Shows the badges in the taskbar, replacing what it showed before; an empty list removes the element.</summary>
     /// <returns>False when the badges could not be shown in the taskbar and need tray icons instead.</returns>
-    public bool Show(IReadOnlyList<DeviceBadge> badges)
+    /// <param name="colors">The taskbar's device colors, for what is not tied to one badge.</param>
+    public bool Show(IReadOnlyList<DeviceBadge> badges, DeviceColors colors)
     {
-        if (!badges.SequenceEqual(_badges))
+        if (!badges.SequenceEqual(_badges) || colors != _colors)
         {
             _badges = badges;
+            _colors = colors;
             ReleaseStrip();
         }
 
@@ -235,7 +238,7 @@ public sealed partial class TaskbarElement : IDisposable
         if (_strip is null || _stripRenderedFor != (dpi, notificationBounds.Height))
         {
             ReleaseStrip();
-            (_strip, _badgeBounds) = TaskbarStripRenderer.Render(_badges, notificationBounds.Height, dpi / 96.0);
+            (_strip, _badgeBounds) = TaskbarStripRenderer.Render(_badges, _colors!, notificationBounds.Height, dpi / 96.0);
             _stripRenderedFor = (dpi, notificationBounds.Height);
         }
 

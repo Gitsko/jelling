@@ -6,7 +6,8 @@ namespace Jelling.App;
 
 /// <summary>
 /// Draws the taskbar element: per device its glyph with the battery level to the right, sized like the
-/// taskbar's own icons and clock.
+/// taskbar's own icons and clock, on one faint rounded surface that sets the devices apart from the app
+/// buttons and the tray.
 /// </summary>
 public static class TaskbarStripRenderer
 {
@@ -15,6 +16,18 @@ public static class TaskbarStripRenderer
     private const float PaddingEpx = 8;
     private const float GapEpx = 5;
 
+    // The surface matches the app buttons' hover highlight: 4 epx from top and bottom, Windows 11's corner radius.
+    // The side inset keeps it off the strip's edges, so it does not touch an app button's highlight next to it
+    private const float SurfaceInsetEpx = 4;
+    private const float SurfaceSideInsetEpx = 2;
+    private const float SurfaceRadiusEpx = 4;
+
+    // About 6 % white on a dark taskbar, 4 % black on a light one: black shows more, so it gets less
+    private const int FillAlphaOnDark = 0x10;
+    private const int FillAlphaOnLight = 0x0A;
+    private const int OutlineAlphaOnDark = 0x18;
+    private const int OutlineAlphaOnLight = 0x10;
+
     // ClearType needs an opaque background; on per-pixel alpha it leaves colored fringes.
     // Measuring uses the same hint, as the hint changes the widths
     private const TextRenderingHint Hint = TextRenderingHint.AntiAliasGridFit;
@@ -22,9 +35,10 @@ public static class TaskbarStripRenderer
     // Fully transparent pixels let clicks fall through to the taskbar below; this one is invisible but hit-testable
     private static readonly Color Background = Color.FromArgb(1, 0, 0, 0);
 
+    /// <param name="colors">The taskbar's device colors; the surface takes the normal one.</param>
     /// <returns>The strip and, in the order of <paramref name="badges"/>, the part of it each badge covers.</returns>
     public static (Bitmap Image, IReadOnlyList<Rectangle> BadgeBounds) Render(
-        IReadOnlyList<DeviceBadge> badges, int height, double scale)
+        IReadOnlyList<DeviceBadge> badges, DeviceColors colors, int height, double scale)
     {
         using var glyphFont = new Font(DeviceText.GlyphFont, (float)(GlyphSizeEpx * scale), GraphicsUnit.Pixel);
         using var textFont = new Font(DeviceText.TextFont, (float)(TextSizeEpx * scale), FontStyle.Regular, GraphicsUnit.Pixel);
@@ -72,6 +86,12 @@ public static class TaskbarStripRenderer
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
         graphics.TextRenderingHint = Hint;
 
+        // High contrast has no translucent fills, so the surface stays out of it
+        if (layout.Count > 0 && !colors.IsHighContrast)
+        {
+            DrawSurface(graphics, bitmap.Width, height, scale, colors.Normal);
+        }
+
         foreach (var (badge, text, glyph, level, _) in layout)
         {
             using var glyphBrush = new SolidBrush(badge.GlyphColor);
@@ -84,5 +104,30 @@ public static class TaskbarStripRenderer
         }
 
         return (bitmap, layout.Select(item => item.Bounds).ToList());
+    }
+
+    // Tinted with the device color, white on a dark taskbar and black on a light one, like the taskbar's own fills.
+    // A low battery's color would tint it red, so it is not taken from a badge
+    private static void DrawSurface(Graphics graphics, int width, int height, double scale, Color tint)
+    {
+        var darkTint = tint.GetBrightness() < 0.5f;
+
+        // Whole pixels, so the outline lands on the same grid at every scale
+        var inset = MathF.Round((float)(SurfaceInsetEpx * scale));
+        var side = MathF.Round((float)(SurfaceSideInsetEpx * scale));
+        var radius = (float)(SurfaceRadiusEpx * scale);
+
+        // Half-pixel offsets keep the one-pixel outline sharp
+        var surface = new RectangleF(side + 0.5f, inset + 0.5f, width - 2 * side - 1, height - 2 * inset - 1);
+        if (surface.Width <= 0 || surface.Height <= 0)
+        {
+            return;
+        }
+
+        using var fill = new SolidBrush(Color.FromArgb(darkTint ? FillAlphaOnLight : FillAlphaOnDark, tint));
+        using var outline = new Pen(Color.FromArgb(darkTint ? OutlineAlphaOnLight : OutlineAlphaOnDark, tint), 1);
+        var corner = new SizeF(2 * radius, 2 * radius);
+        graphics.FillRoundedRectangle(fill, surface, corner);
+        graphics.DrawRoundedRectangle(outline, surface, corner);
     }
 }
