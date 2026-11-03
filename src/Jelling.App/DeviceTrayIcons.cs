@@ -6,7 +6,8 @@ namespace Jelling.App;
 
 /// <summary>
 /// One extra tray icon per pinned, connected device: its glyph above the battery level, or the glyph alone
-/// in the level's color, shown in the taskbar rather than in the overflow.
+/// in the level's color, shown in the taskbar rather than in the overflow. A faint line right of them sets them
+/// apart from the system icons; the tray leaves no room between icons to draw it in.
 /// </summary>
 public sealed class DeviceTrayIcons(Action onClick) : IDisposable
 {
@@ -19,8 +20,11 @@ public sealed class DeviceTrayIcons(Action onClick) : IDisposable
     // A tray that keeps refusing the icon would otherwise be logged on every refresh
     private string? _lastError;
 
+    private (TaskbarIcon Icon, DeviceColors Colors, int Size)? _separator;
+
     /// <param name="badges">From <see cref="DeviceBadge.ForPinned"/>; empty while the taskbar element shows them.</param>
-    public void Update(IReadOnlyList<DeviceBadge> badges)
+    /// <param name="colors">The taskbar's device colors, for the separator.</param>
+    public void Update(IReadOnlyList<DeviceBadge> badges, DeviceColors colors)
     {
         _unpromoted.RemoveWhere(TrayPromotion.TryPromote);
 
@@ -36,7 +40,20 @@ public sealed class DeviceTrayIcons(Action onClick) : IDisposable
             _lastError = null;
         }
 
+        // Explorer puts a new icon left of the ones it knows and keeps a place the user dragged it to by its GUID.
+        // Created before the device icons, the separator ends up right of them on a fresh install. An install
+        // over a version without it already knows the device icons, so the separator lands left of them until
+        // dragged once
         var size = TrayIconRenderer.SmallIconSize();
+        if (badges.Count > 0)
+        {
+            ShowSeparator(colors, size);
+        }
+        else
+        {
+            RemoveSeparator();
+        }
+
         foreach (var badge in badges)
         {
             if (_icons.TryGetValue(badge.Id, out var current))
@@ -53,12 +70,18 @@ public sealed class DeviceTrayIcons(Action onClick) : IDisposable
                 continue;
             }
 
-            Add(badge, size);
+            // Added only after the separator, or it would go left of them for good. A refused separator is tried
+            // again on the next refresh, the device icons with it
+            if (_separator is not null)
+            {
+                Add(badge, size);
+            }
         }
     }
 
     public void Dispose()
     {
+        RemoveSeparator();
         foreach (var id in _icons.Keys.ToList())
         {
             Remove(id);
@@ -67,16 +90,55 @@ public sealed class DeviceTrayIcons(Action onClick) : IDisposable
 
     private void Add(DeviceBadge badge, int size)
     {
-        var image = Render(badge, size);
+        var icon = Create(DeviceIconId.For(Environment.ProcessPath!, badge.Id), Render(badge, size), badge.ToolTip);
+        if (icon is not null)
+        {
+            _icons[badge.Id] = (icon, badge, size);
+        }
+    }
+
+    private void ShowSeparator(DeviceColors colors, int size)
+    {
+        if (_separator is { } current)
+        {
+            if (current.Colors != colors || current.Size != size)
+            {
+                current.Icon.Icon = RenderSeparator(colors, size);
+                _separator = (current.Icon, colors, size);
+            }
+
+            return;
+        }
+
+        // Named after the app, so the entry in the taskbar settings says whose it is
+        var icon = Create(DeviceIconId.Separator(Environment.ProcessPath!), RenderSeparator(colors, size), Strings.Get("SeparatorToolTip"));
+        if (icon is not null)
+        {
+            _separator = (icon, colors, size);
+        }
+    }
+
+    private void RemoveSeparator()
+    {
+        if (_separator is { } current)
+        {
+            Destroy(current.Icon);
+            _separator = null;
+        }
+    }
+
+    // Null when the tray refused the icon; the next refresh tries again
+    private TaskbarIcon? Create(Guid id, Icon image, string toolTip)
+    {
         TaskbarIcon icon;
         try
         {
             icon = new TaskbarIcon
             {
                 // Must be set before ForceCreate
-                Id = DeviceIconId.For(Environment.ProcessPath!, badge.Id),
+                Id = id,
                 Icon = image,
-                ToolTipText = badge.ToolTip,
+                ToolTipText = toolTip,
                 NoLeftClickDelay = true,
                 LeftClickCommand = new RelayCommand(onClick),
             };
@@ -92,11 +154,12 @@ public sealed class DeviceTrayIcons(Action onClick) : IDisposable
         {
             icon.ForceCreate(false);
             _lastError = null;
-            _icons[badge.Id] = (icon, badge, size);
             if (!TrayPromotion.TryPromote(icon.Id))
             {
                 _unpromoted.Add(icon.Id);
             }
+
+            return icon;
         }
         catch (Exception exception)
         {
@@ -109,16 +172,25 @@ public sealed class DeviceTrayIcons(Action onClick) : IDisposable
             }
 
             icon.Dispose();
+            return null;
         }
     }
 
     private void Remove(Guid deviceId)
     {
-        var icon = _icons[deviceId].Icon;
-        _unpromoted.Remove(icon.Id);
-        icon.Dispose();
+        Destroy(_icons[deviceId].Icon);
         _icons.Remove(deviceId);
     }
+
+    private void Destroy(TaskbarIcon icon)
+    {
+        _unpromoted.Remove(icon.Id);
+        icon.Dispose();
+    }
+
+    // High contrast has no faded colors, so the line takes the full text color there
+    private static Icon RenderSeparator(DeviceColors colors, int size) =>
+        TrayIconRenderer.RenderSeparator(colors.Normal, faded: !colors.IsHighContrast, size);
 
     private static Icon Render(DeviceBadge badge, int size) =>
         TrayIconRenderer.RenderDevice(badge.Glyph, badge.Percent, badge.GlyphColor, badge.LevelColor, size);

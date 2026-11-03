@@ -6,6 +6,7 @@
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <data name="FlyoutHeader.Text" xml:space="preserve"><value>Jelling – Bluetooth devices</value></data>
   <data name="EmptyText.Text" xml:space="preserve"><value>No Bluetooth devices found</value></data>
+  <data name="SeparatorToolTip" xml:space="preserve"><value>Jelling – separator</value></data>
   <data name="Exit" xml:space="preserve"><value>Exit</value></data>
   <data name="AutoStart" xml:space="preserve"><value>Start with Windows</value></data>
   <data name="ShowPercent" xml:space="preserve"><value>Show battery level as number in taskbar</value></data>

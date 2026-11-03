@@ -6,6 +6,7 @@
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
   <data name="FlyoutHeader.Text" xml:space="preserve"><value>Jelling – Bluetooth-Geräte</value></data>
   <data name="EmptyText.Text" xml:space="preserve"><value>Keine Bluetooth-Geräte gefunden</value></data>
+  <data name="SeparatorToolTip" xml:space="preserve"><value>Jelling – Trennlinie</value></data>
   <data name="Exit" xml:space="preserve"><value>Beenden</value></data>
   <data name="AutoStart" xml:space="preserve"><value>Mit Windows starten</value></data>
   <data name="ShowPercent" xml:space="preserve"><value>Akkustand als Zahl in der Taskleiste</value></data>
