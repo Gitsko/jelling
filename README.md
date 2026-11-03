@@ -2,7 +2,7 @@
 
 Battery levels of your Bluetooth devices, one click away in the Windows 11 taskbar.
 
-Jelling Battery Monitor puts a Bluetooth icon in the notification area. Click it and a flyout lists every paired device with its type and charge, styled like the Windows 11 quick settings. Devices that are switched off or out of range stay in the list, dimmed, with their last known level.
+Jelling Battery Monitor puts a Bluetooth icon in the notification area. Click it and a flyout lists every paired device with its type and charge, styled like the Windows 11 quick settings. Devices that are switched off or out of range stay in the list, dimmed, with their last known level. The devices you care about most can also sit right in the taskbar or in a small widget on the desktop.
 
 **[Download for Windows 11 (x64)](https://github.com/Gitsko/jelling/releases/latest/download/Jelling-Setup-win-x64.exe)** · [ARM64](https://github.com/Gitsko/jelling/releases/latest/download/Jelling-Setup-win-arm64.exe) · [all releases](https://github.com/Gitsko/jelling/releases)
 
@@ -16,21 +16,45 @@ With "Show battery level as number in taskbar" turned off, only the symbols rema
 
 ![The same two devices as symbols only](assets/readme/taskbar-symbols.png)
 
+The desktop widget shows the same devices in the same frame, wherever you drop it:
+
+![The two pinned devices in the widget on the desktop](assets/readme/widget.png)
+
 The screenshots show the German interface; on an English Windows the app is in English.
 
 ## Features
 
-- Flyout with name, device type and battery level; the list updates by itself when a device connects, disconnects or reports a new level
-- Devices in the taskbar: the pin button next to a device ("Show in taskbar") shows it in the taskbar while it is connected, left of the overflow arrow: the device symbol with its battery level to the right, black or white like the Windows icons, the level in red once it reaches the device's warning threshold. Hovering a device shows its name and level, clicking opens the flyout
-- "Show battery level as number in taskbar" in the right-click menu: turned off, the taskbar shows only the symbols, and a symbol turns red at the warning threshold. The tooltip still names the level
-- When the taskbar has no room left of the overflow arrow, or is vertical, the pinned devices get their own icons in the notification area instead. Jelling puts them in the taskbar rather than behind the overflow arrow; if you hide them under Settings > Personalization > Taskbar > Other system tray icons, they stay hidden. Windows remembers both as long as Jelling stays in the same folder
-- "Widget on the desktop" in the right-click menu shows the pinned devices a second time in a small frame on the desktop, drawn like in the taskbar and visible when the desktop is shown. Drag it where you want it; it stays there, also after a restart. "Lock widget position" stops it from moving, and clicking it opens the flyout. With no pinned device connected, the widget is hidden
-- Warning threshold per device: the "Warn at" list in the flyout sets the level (default 20 %, or Off) at which the device's level turns red and a notification appears. It warns once per discharge and again only after the device was charged more than 10 points above the threshold. Clicking it opens the flyout
-- Start with Windows: right-click the icon. Exit is in the same menu
+### Flyout
+
+- Name, device type and battery level of every paired device. The list updates by itself when a device connects, disconnects or reports a new level
+- The bottom right shows the version and a link to this page. When a newer release is out, a small download arrow appears next to them and opens the releases page; Jelling never downloads or installs anything by itself
+
+### Taskbar
+
+- The pin button next to a device ("Show in taskbar") puts it in the taskbar while it is connected, left of the overflow arrow: the device symbol with its level to the right, black or white like the Windows icons. Hovering shows name and level, clicking opens the flyout
+- "Show battery level as number in taskbar" in the right-click menu: turned off, only the symbols remain. The tooltip still names the level
+- With no room left of the overflow arrow, or with a vertical taskbar, the pinned devices get their own icons in the notification area instead. Jelling places them in the taskbar rather than behind the overflow arrow. If you hide them under Settings > Personalization > Taskbar > Other system tray icons, they stay hidden; Windows remembers this as long as Jelling stays in the same folder
+
+### Desktop widget
+
+Not in v1.1.0 yet; it comes with the next release.
+
+- "Widget on the desktop" in the right-click menu shows the pinned devices a second time, in a small frame on the desktop. It stays behind your windows and shows when you press Win+D
+- Drag it where you want it. It keeps that place after a restart and moves back onto a screen if its monitor is gone
+- "Lock widget position" in the same menu stops it from moving. Clicking it opens the flyout
+- With no pinned device connected, the widget is hidden
+
+### Warnings
+
+- The "Warn at" list in the flyout sets a level per device (default 20 %, or Off). At that level the device's number turns red in the taskbar and widget, or the symbol does when numbers are off, and a notification appears. Clicking the notification opens the flyout
+- It warns once per discharge, and again only after the device was charged more than 10 points above the threshold
+
+### Everything else
+
+- Start with Windows and Exit are in the right-click menu of the Bluetooth icon
 - Starting Jelling a second time opens the flyout of the running app instead of adding a second icon
 - Light, dark and high-contrast taskbars
 - English and German, following the Windows display language; other languages get English
-- The flyout's bottom right shows the version and a link to this page. When a newer release is out, a small download arrow appears next to them and opens the releases page; Jelling never downloads or installs anything by itself
 
 ## Which devices show a level
 
@@ -103,7 +127,7 @@ Pushing a tag like `v1.2.0` builds both setups and ZIPs in GitHub Actions and at
 - Vendor protocols (Logitech, Sony, Bose): each needs its own reverse engineering and test hardware
 - AirPods: Apple only exposes estimates in proprietary advertisements
 - Connecting or disconnecting devices: Windows already does that well
-- A widget for the Windows Widgets board: it cannot refresh often enough
+- A widget for the Windows Widgets board: it cannot refresh often enough. The desktop widget covers that instead
 
 ## License
 
