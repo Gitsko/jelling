@@ -22,8 +22,8 @@ internal static class TrayMenu
         menu.Items.Add(new MenuFlyoutSeparator());
 
         var autoStart = new ToggleMenuFlyoutItem { Text = Strings.Get("AutoStart"), IsChecked = AutoStart.IsEnabled };
-        // The native menu does not flip IsChecked itself; read the registry back so the tick shows what is stored
-        // A policy or security tool may lock the Run key; the tick then stays as it was
+        // The native menu does not flip IsChecked itself; read the setting back so the tick shows what is stored
+        // A policy or security tool may lock the Run key or the startup task; the tick then stays as it was
         autoStart.Command = new RelayCommand(() => guard("AutoStart", () =>
         {
             AutoStart.Set(!AutoStart.IsEnabled);
