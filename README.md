@@ -37,19 +37,26 @@ Jelling shows the level Windows itself reads, the same value you see under Setti
 
 ## Install
 
-Requires Windows 11 (x64 or ARM64). Nothing else: .NET and the Windows App SDK are inside the ZIP.
+Requires Windows 11 (x64 or ARM64). Nothing else: .NET and the Windows App SDK are included.
 
-1. Download [`Jelling-win-x64.zip`](https://github.com/Gitsko/jelling/releases/latest/download/Jelling-win-x64.zip) (or [`Jelling-win-arm64.zip`](https://github.com/Gitsko/jelling/releases/latest/download/Jelling-win-arm64.zip)) from the latest release
-2. Unzip it to a folder that stays, for example `%LOCALAPPDATA%\Programs\Jelling`. If you move the folder later, turn "Start with Windows" on again
-3. Run `Jelling.App.exe`
+1. Download [`Jelling-Setup-win-x64.exe`](https://github.com/Gitsko/jelling/releases/latest/download/Jelling-Setup-win-x64.exe) (or [`Jelling-Setup-win-arm64.exe`](https://github.com/Gitsko/jelling/releases/latest/download/Jelling-Setup-win-arm64.exe)) from the latest release
+2. Run it. It installs for your user only, without administrator rights, to `%LOCALAPPDATA%\Programs\Jelling` and adds Jelling to the Start menu
 
-To check the download, compare `Get-FileHash Jelling-win-x64.zip` in PowerShell with the release's `SHA256SUMS.txt`. With the GitHub CLI, `gh attestation verify Jelling-win-x64.zip --repo Gitsko/jelling --signer-workflow Gitsko/jelling/.github/workflows/ci.yml` also confirms that the ZIP was built by this repository's release workflow.
+On the first install the setup offers to start Jelling with Windows, ticked unless you untick it.
 
-The exe is not code-signed, so SmartScreen may warn on the first start. Choose "More info" and then "Run anyway". The warning does not appear if you open the ZIP's properties and tick "Unblock" before unzipping. With Smart App Control turned on, Windows blocks unsigned apps like this one and offers no "Run anyway".
+The setup is not code-signed, so SmartScreen may warn when you run it. Choose "More info" and then "Run anyway". With Smart App Control turned on, Windows blocks unsigned programs like this one and offers no "Run anyway".
 
-To update, exit Jelling from the right-click menu, then replace the folder's contents with the new ZIP. Keep the folder where it is so autostart and the taskbar positions stay.
+To check the download, compare `Get-FileHash Jelling-Setup-win-x64.exe` in PowerShell with the release's `SHA256SUMS.txt`. With the GitHub CLI, `gh attestation verify Jelling-Setup-win-x64.exe --repo Gitsko/jelling --signer-workflow Gitsko/jelling/.github/workflows/ci.yml` also confirms that the file was built by this repository's release workflow. Both work the same for the ZIPs.
 
-To uninstall, turn off "Start with Windows", exit the app and delete its folder. Settings (`settings.json`) and the error log (`crash.log`, older entries in `crash.old.log`) live in `%LOCALAPPDATA%\Jelling`; delete that folder too.
+To update, run the setup of the new version. It closes Jelling, replaces its files and starts it again; settings, "Start with Windows" and the taskbar positions stay. Run over a copy unzipped to `%LOCALAPPDATA%\Programs\Jelling` from an earlier ZIP, the setup replaces it in place: settings and taskbar positions stay, and it asks about starting with Windows as on a first install. A copy in another folder is left alone; exit it and delete its folder first, or the new Jelling hands over to the old one still running.
+
+To uninstall, open Settings > Apps > Installed apps and uninstall "Jelling Battery Monitor". This closes the app and removes it from autostart. Settings (`settings.json`) and the error log (`crash.log`, older entries in `crash.old.log`) live in `%LOCALAPPDATA%\Jelling` and stay; delete that folder too if you want them gone.
+
+### Without setup
+
+Each release also has a ZIP: [`Jelling-win-x64.zip`](https://github.com/Gitsko/jelling/releases/latest/download/Jelling-win-x64.zip) or [`Jelling-win-arm64.zip`](https://github.com/Gitsko/jelling/releases/latest/download/Jelling-win-arm64.zip). Before unzipping, open its properties and tick "Unblock" so SmartScreen does not warn. Then unzip it to a folder that stays and run `Jelling.App.exe`. If you move the folder later, turn "Start with Windows" on again.
+
+To update, exit Jelling from the right-click menu and replace the folder's contents with the new ZIP. To uninstall, turn off "Start with Windows", exit the app and delete its folder and `%LOCALAPPDATA%\Jelling`.
 
 When reporting a problem, attaching `crash.log` helps. Paths under your user folder are written as `%USERPROFILE%` (entries from version 1.0.1 and older still show them in full), and device names can appear, so read it through before posting.
 
@@ -66,13 +73,19 @@ dotnet build Jelling.slnx
 dotnet test Jelling.slnx --no-build
 ```
 
-A self-contained build like the release (for ARM64 use `-r win-arm64 -p:Platform=ARM64`):
+A self-contained build like the release (for ARM64 use `-r win-arm64 -p:Platform=ARM64 -o artifacts/publish/win-arm64`):
 
 ```
 dotnet publish src/Jelling.App/Jelling.App.csproj -c Release -r win-x64 -p:Platform=x64 -o artifacts/publish/win-x64
 ```
 
-Pushing a tag like `v1.2.0` builds both ZIPs in GitHub Actions and attaches them to a release.
+The setup is built from that output with [Inno Setup](https://jrsoftware.org/isinfo.php) 7; `tools\Install-InnoSetup.ps1` installs the version CI uses and prints the path of its `ISCC.exe`. The script finds the output at the path above (for ARM64 add `/DArch=arm64`) and writes the setup to `artifacts\installer`:
+
+```
+ISCC installer\jelling.iss
+```
+
+Pushing a tag like `v1.2.0` builds both setups and ZIPs in GitHub Actions and attaches them to a release.
 
 ## Not planned
 
