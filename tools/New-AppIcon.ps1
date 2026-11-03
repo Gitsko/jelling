@@ -60,3 +60,23 @@ for ($i = 0; $i -lt $sizes.Count; $i++) {
 foreach ($image in $images) { $writer.Write($image) }
 [IO.File]::WriteAllBytes((Join-Path $assets 'AppIcon.ico'), $out.ToArray())
 [IO.File]::WriteAllBytes((Join-Path $assets 'AppIcon.png'), (New-IconPng 256))
+
+# The logos the MSIX package manifest names, at scale 200; the wide one centers the icon on transparency
+function Write-PackageLogo([string] $name, [int] $width, [int] $height, [int] $iconSize) {
+    $icon = [Drawing.Image]::FromStream((New-Object IO.MemoryStream (, (New-IconPng $iconSize))))
+    $canvas = New-Object Drawing.Bitmap $width, $height
+    $graphics = [Drawing.Graphics]::FromImage($canvas)
+    $graphics.DrawImage($icon, [int](($width - $iconSize) / 2), [int](($height - $iconSize) / 2), $iconSize, $iconSize)
+    $canvas.Save((Join-Path $assets "$name.scale-200.png"), [Drawing.Imaging.ImageFormat]::Png)
+    $graphics.Dispose(); $canvas.Dispose(); $icon.Dispose()
+}
+
+Write-PackageLogo 'Square44x44Logo' 88 88 88
+Write-PackageLogo 'Square150x150Logo' 300 300 200
+Write-PackageLogo 'Wide310x150Logo' 620 300 200
+Write-PackageLogo 'StoreLogo' 100 100 100
+
+# Taskbar, notifications and the app list take these sizes as they are, without the plate behind the icon
+foreach ($size in 16, 24, 32, 48, 256) {
+    [IO.File]::WriteAllBytes((Join-Path $assets "Square44x44Logo.targetsize-${size}_altform-unplated.png"), (New-IconPng $size))
+}

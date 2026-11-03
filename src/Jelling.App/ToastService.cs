@@ -24,9 +24,18 @@ public sealed class ToastService : IDisposable
 
         try
         {
-            // Unpackaged apps have no manifest to take name and icon from
-            var icon = new Uri(Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.png"));
-            AppNotificationManager.Default.Register("Jelling Battery Monitor", icon);
+            if (PackageIdentity.IsPackaged)
+            {
+                // Name, icon and click activation come from Package.appxmanifest
+                AppNotificationManager.Default.Register();
+            }
+            else
+            {
+                // Unpackaged apps have no manifest to take name and icon from
+                var icon = new Uri(Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.png"));
+                AppNotificationManager.Default.Register("Jelling Battery Monitor", icon);
+            }
+
             _registered = true;
         }
         catch (Exception exception)

@@ -6,3 +6,5 @@ artifacts/
 tasks/
 docs/
 spikes/
+AppPackages/
+BundleArtifacts/

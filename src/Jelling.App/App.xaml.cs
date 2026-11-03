@@ -71,8 +71,13 @@ public partial class App : Application
         _taskbarElement.AvailabilityChanged += (_, _) => ShowInTaskbarAfterRecheck();
         _desktopWidget = new DesktopWidget(ToggleFlyout, () => _settings.WidgetLocked, position => Save(() => _settings.SetWidgetPosition(position)));
         _toasts = new ToastService(() => dispatcher.TryEnqueue(OpenFlyout));
-        _updates = new UpdateChecker();
-        _updates.UpdateAvailable += (_, latest) => _flyout.ShowUpdate(latest);
+        // The Store installs updates itself; pointing its users to the GitHub release would only confuse them
+        if (!PackageIdentity.IsPackaged)
+        {
+            _updates = new UpdateChecker();
+            _updates.UpdateAvailable += (_, latest) => _flyout.ShowUpdate(latest);
+        }
+
         _theme = TaskbarTheme.Current(_uiSettings);
         _ = RefreshAsync();
 

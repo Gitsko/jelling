@@ -41,6 +41,15 @@
     <EnableMsixTooling>true</EnableMsixTooling>
   </PropertyGroup>
 
+  <!-- -p:Store=true builds the MSIX package for the Microsoft Store instead of the unpackaged app -->
+  <PropertyGroup Condition="'$(Store)' == 'true'">
+    <WindowsPackageType>MSIX</WindowsPackageType>
+    <GenerateAppxPackageOnBuild>true</GenerateAppxPackageOnBuild>
+    <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
+    <!-- One .msix per platform; CI bundles them, as dotnet build cannot build several platforms in one run -->
+    <AppxBundle>Never</AppxBundle>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Jelling.Core\Jelling.Core.csproj" />
   </ItemGroup>
