@@ -90,7 +90,7 @@ Jelling reads the battery levels from Windows and keeps everything on your PC. T
 
 ## Code signing policy
 
-Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/). Releases up to and including v1.2.0 are not signed.
+Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/). Releases up to and including v1.3.0 are not signed.
 
 Only files built by this repository's release workflow from a tagged commit get signed, and each signing request is approved by hand.
 
