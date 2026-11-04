@@ -6,19 +6,18 @@ namespace Jelling.App;
 /// <summary>The tray icon's right-click menu.</summary>
 internal static class TrayMenu
 {
-    /// <param name="setLevelDisplay">Saves the setting and redraws; the ticks then read <paramref name="levelDisplay"/> back.</param>
-    /// <param name="setWidgetLevelDisplay">Saves the setting and redraws the widget; the ticks read it back the same way.</param>
-    /// <param name="setShowWidget">Saves the setting and shows or removes the widget; the tick reads it back the same way.</param>
-    /// <param name="setWidgetShowNames">Saves the setting and redraws the widget; the tick reads it back the same way.</param>
-    /// <param name="setWidgetScale">Saves the setting and redraws the widget; the ticks read it back the same way.</param>
-    /// <param name="setWidgetLocked">Saves the setting; the tick reads it back the same way.</param>
+    /// <param name="settings">What the ticks read back after each change, so they show what is stored.</param>
+    /// <param name="setLevelDisplay">Saves the setting and redraws.</param>
+    /// <param name="setShowWidget">Saves the setting and shows or removes the widget.</param>
+    /// <param name="setWidgetLevelDisplay">Saves the setting and redraws the widget.</param>
+    /// <param name="setWidgetShowNames">Saves the setting and redraws the widget.</param>
+    /// <param name="setWidgetScale">Saves the setting and redraws the widget.</param>
+    /// <param name="setWidgetLocked">Saves the setting.</param>
     /// <param name="guard">Runs an action so that its failure is logged instead of ending the app.</param>
     public static MenuFlyout Create(
-        string title, Func<LevelDisplay> levelDisplay, Action<LevelDisplay> setLevelDisplay,
-        Func<bool> showWidget, Action<bool> setShowWidget, Func<LevelDisplay> widgetLevelDisplay,
-        Action<LevelDisplay> setWidgetLevelDisplay, Func<bool> widgetShowNames, Action<bool> setWidgetShowNames,
-        Func<int> widgetScale, Action<int> setWidgetScale,
-        Func<bool> widgetLocked, Action<bool> setWidgetLocked, Action exit, Action<string, Action> guard)
+        string title, DeviceSettings settings, Action<LevelDisplay> setLevelDisplay, Action<bool> setShowWidget,
+        Action<LevelDisplay> setWidgetLevelDisplay, Action<bool> setWidgetShowNames, Action<int> setWidgetScale,
+        Action<bool> setWidgetLocked, Action exit, Action<string, Action> guard)
     {
         // PopupMenu mode turns the flyout into a native menu that only runs Command, not Click
         var menu = new MenuFlyout();
@@ -35,13 +34,36 @@ internal static class TrayMenu
         }));
         menu.Items.Add(autoStart);
 
-        menu.Items.Add(Choice(Strings.Get("LevelDisplay"), levelDisplay, setLevelDisplay, LevelDisplays()));
-        menu.Items.Add(Toggle(Strings.Get("ShowWidget"), showWidget, setShowWidget));
-        menu.Items.Add(Choice(Strings.Get("WidgetLevelDisplay"), widgetLevelDisplay, setWidgetLevelDisplay, LevelDisplays()));
-        menu.Items.Add(Toggle(Strings.Get("WidgetShowNames"), widgetShowNames, setWidgetShowNames));
-        menu.Items.Add(Choice(Strings.Get("WidgetScale"), widgetScale, setWidgetScale,
-            [.. DeviceSettings.WidgetScales.Select(scale => (scale, $"{scale}\u00D7"))]));
-        menu.Items.Add(Toggle(Strings.Get("LockWidget"), widgetLocked, setWidgetLocked));
+        menu.Items.Add(Choice(Strings.Get("LevelDisplay"), () => settings.LevelDisplay, setLevelDisplay, LevelDisplays()));
+
+        // The widget's own choices change nothing while it is off, so they are greyed out until it is on
+        MenuFlyoutItemBase[] widgetItems =
+        [
+            Choice(Strings.Get("WidgetLevelDisplay"), () => settings.WidgetLevelDisplay, setWidgetLevelDisplay, LevelDisplays()),
+            Toggle(Strings.Get("WidgetShowNames"), () => settings.WidgetShowNames, setWidgetShowNames),
+            Choice(Strings.Get("WidgetScale"), () => settings.WidgetScale, setWidgetScale,
+                [.. DeviceSettings.WidgetScales.Select(scale => (scale, $"{scale}\u00D7"))]),
+            Toggle(Strings.Get("LockWidget"), () => settings.WidgetLocked, setWidgetLocked),
+        ];
+        void EnableWidgetItems()
+        {
+            foreach (var item in widgetItems)
+            {
+                item.IsEnabled = settings.ShowWidget;
+            }
+        }
+
+        menu.Items.Add(Toggle(Strings.Get("ShowWidget"), () => settings.ShowWidget, show =>
+        {
+            setShowWidget(show);
+            EnableWidgetItems();
+        }));
+        foreach (var item in widgetItems)
+        {
+            menu.Items.Add(item);
+        }
+
+        EnableWidgetItems();
         menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(new MenuFlyoutItem { Text = Strings.Get("Exit"), Command = new RelayCommand(exit) });
         return menu;
@@ -65,7 +87,12 @@ internal static class TrayMenu
             var item = new ToggleMenuFlyoutItem { Text = label, IsChecked = EqualityComparer<T>.Default.Equals(get(), value) };
             item.Command = new RelayCommand(() =>
             {
-                set(value);
+                // Picking the option already ticked changes nothing and need not rewrite the file
+                if (!EqualityComparer<T>.Default.Equals(get(), value))
+                {
+                    set(value);
+                }
+
                 foreach (var (option, other) in items)
                 {
                     other.IsChecked = EqualityComparer<T>.Default.Equals(get(), option);

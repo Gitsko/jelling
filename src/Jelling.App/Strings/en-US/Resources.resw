@@ -18,7 +18,7 @@
   <data name="WidgetShowNames" xml:space="preserve"><value>Show names on the widget</value></data>
   <data name="WidgetScale" xml:space="preserve"><value>Widget size</value></data>
   <data name="LockWidget" xml:space="preserve"><value>Lock widget position</value></data>
-  <data name="ShowInTaskbar" xml:space="preserve"><value>Show in taskbar</value></data>
+  <data name="ShowInTaskbar" xml:space="preserve"><value>Show in the taskbar</value></data>
   <data name="ShowOnWidget" xml:space="preserve"><value>Show on the widget</value></data>
   <data name="LowThresholdOff" xml:space="preserve"><value>Off</value></data>
   <data name="LowThreshold" xml:space="preserve"><value>Warn at</value></data>

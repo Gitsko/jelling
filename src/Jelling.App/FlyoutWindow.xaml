@@ -62,7 +62,6 @@
                     x:Name="LowThresholdHeader"
                     x:Uid="LowThresholdHeader"
                     Width="88"
-                    Margin="0,0,56,2"
                     HorizontalAlignment="Right"
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                     Style="{StaticResource CaptionTextBlockStyle}" />

@@ -33,13 +33,13 @@ The screenshots show the German interface; on an English Windows the app is in E
 
 ### Taskbar
 
-- The taskbar button next to a device ("Show in taskbar") puts it in the taskbar while it is connected, left of the overflow arrow: the device symbol with its level to the right, black or white like the Windows icons. Hovering shows name and level, clicking opens the flyout, right-clicking opens the same menu as the Bluetooth icon
+- The taskbar button next to a device ("Show in the taskbar") puts it in the taskbar while it is connected, left of the overflow arrow: the device symbol with its level to the right, black or white like the Windows icons. Hovering shows name and level, clicking opens the flyout, right-clicking opens the same menu as the Bluetooth icon
 - "Battery level in the taskbar" in the right-click menu: "Number" (the default), "Ring around the icon", a ring in Bluetooth blue that fills with the level, or "Symbol only". The choice applies to the taskbar and the notification area icons. The tooltip always names the level
 - With no room left of the overflow arrow, or with a vertical taskbar, the pinned devices get their own icons in the notification area instead. Jelling places them in the taskbar rather than behind the overflow arrow. If you hide them under Settings > Personalization > Taskbar > Other system tray icons, they stay hidden; Windows remembers this as long as Jelling stays in the same folder
 
 ### Desktop widget
 
-- "Widget on the desktop" in the right-click menu turns the widget on: a small plate on the desktop. While it is on, each device in the flyout gets a second button ("Show on the widget"), so the widget can show other devices than the taskbar. After an update from an older version, it starts with the devices that were pinned to the taskbar. The plate lets the wallpaper show through slightly, while the devices stay readable on any wallpaper. It follows the Windows app mode (light or dark). It stays behind your windows and shows when you press Win+D
+- "Widget on the desktop" in the right-click menu turns the widget on: a small plate on the desktop. The widget's other menu entries stay greyed out while it is off. While it is on, each device in the flyout gets a second button ("Show on the widget"), so the widget can show other devices than the taskbar. After an update from an older version, it starts with the devices that were pinned to the taskbar. The plate lets the wallpaper show through slightly, while the devices stay readable on any wallpaper. It follows the Windows app mode (light or dark). It stays behind your windows and shows when you press Win+D
 - Drag it where you want it. It keeps that place after a restart and moves back onto a screen if its monitor is gone. Right-clicking it opens the menu
 - "Battery level on the widget" offers the same choices for the widget alone, so it can show rings while the taskbar shows numbers. After an update it starts with the taskbar's choice
 - "Show names on the widget" writes each device's name below it in smaller text. Long names are cut off, so the widget stays compact

@@ -529,6 +529,71 @@ public sealed class DeviceSettingsTests : IDisposable
     }
 
     [Fact]
+    public void PinAfterAFailedReadKeepsWhatTheUserChose()
+    {
+        new DeviceSettings(SettingsPath).SetPinned(Headset, true);
+        DeviceSettings settings;
+        using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            // Read as defaults, so the row showed Headset unpinned and the user pins it
+            settings = new DeviceSettings(SettingsPath);
+        }
+
+        settings.SetPinned(Headset, true);
+
+        Assert.True(new DeviceSettings(SettingsPath).IsPinned(Headset));
+    }
+
+    [Fact]
+    public void WidgetChoiceAfterAFailedReadKeepsWhatTheUserChose()
+    {
+        new DeviceSettings(SettingsPath).SetOnWidget(Headset, true);
+        DeviceSettings settings;
+        using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            settings = new DeviceSettings(SettingsPath);
+        }
+
+        settings.SetOnWidget(Headset, true);
+
+        Assert.True(new DeviceSettings(SettingsPath).IsOnWidget(Headset));
+    }
+
+    [Fact]
+    public void WidgetChangesWhileLockedSurviveTheReload()
+    {
+        new DeviceSettings(SettingsPath).SetPinned(Headset, true);
+        DeviceSettings settings;
+        using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            settings = new DeviceSettings(SettingsPath);
+            Assert.Throws<IOException>(() => settings.SetWidgetShowNames(true));
+            Assert.Throws<IOException>(() => settings.SetWidgetLevelDisplay(LevelDisplay.Ring));
+        }
+
+        settings.SetLevelDisplay(LevelDisplay.Symbol);
+
+        var reloaded = new DeviceSettings(SettingsPath);
+        Assert.True(reloaded.IsPinned(Headset));
+        Assert.True(reloaded.WidgetShowNames);
+        Assert.Equal(LevelDisplay.Ring, reloaded.WidgetLevelDisplay);
+        Assert.Equal(LevelDisplay.Symbol, reloaded.LevelDisplay);
+    }
+
+    [Fact]
+    public void FieldsFromANewerVersionSurviveASave()
+    {
+        Directory.CreateDirectory(_folder);
+        File.WriteAllText(SettingsPath, """{"PinnedDevices":[],"FutureField":{"Kept":1}}""");
+
+        new DeviceSettings(SettingsPath).SetPinned(Headset, true);
+
+        var saved = File.ReadAllText(SettingsPath);
+        Assert.Contains("\"FutureField\":{\"Kept\":1}", saved);
+        Assert.True(new DeviceSettings(SettingsPath).IsPinned(Headset));
+    }
+
+    [Fact]
     public void CorruptFileThatCannotBeKeptAsideReadsAsDefaults()
     {
         Directory.CreateDirectory(_folder);
