@@ -8,18 +8,17 @@ $assets = Join-Path $PSScriptRoot '..\src\Jelling.App\Assets'
 $blue = [Drawing.Color]::FromArgb(0x00, 0x82, 0xFC)
 $trackColor = [Drawing.Color]::FromArgb(0xCC, 0xE6, 0xFE)
 $glyph = [string][char]0xE702
+# The rune for the small sizes, set pixel by pixel: any scaled or anti-aliased stroke turns to mush there.
+# One-pixel lines, 45 degrees where there is room; 16 px has room only for a shorter one with a straight crossbar
+$small = @{
+    16 = '..#..', '..##.', '#.#.#', '.###.', '#.#.#', '..##.', '..#..'
+    20 = '..#..', '..##.', '#.#.#', '.###.', '..#..', '.###.', '#.#.#', '..##.', '..#..'
+    24 = '...#...', '...##..', '...#.#.', '#..#..#', '.#.#.#.', '..###..', '...#...', '..###..', '.#.#.#.', '#..#..#',
+         '...#.#.', '...##..', '...#...'
+}
 
-function New-IconPng([int] $size) {
-    $bitmap = New-Object Drawing.Bitmap $size, $size
-    $graphics = [Drawing.Graphics]::FromImage($bitmap)
-    $graphics.SmoothingMode = 'AntiAlias'
-    # Slimmer from 64 px up; smaller sizes need heavier strokes to stay readable, and the ring whole pixels,
-    # or it blurs into the face
-    $large = $size -ge 64
-    $ringWidth = [Math]::Max([Math]::Round($size * $(if ($large) { 0.07 } else { 0.09 })), 2)
-    $inset = $ringWidth / 2
-    $diameter = $size - $ringWidth
-
+# Face, track and the blue three quarters. Inset and diameter are in pixels of the final icon
+function Draw-Ring([Drawing.Graphics] $graphics, [double] $ringWidth, [double] $inset, [double] $diameter) {
     # A single color on transparency counts as a monochrome glyph: notifications invert it to match the theme
     # (the blue turned orange). The white face keeps the icon multi-colored, so Windows shows it as drawn
     $graphics.FillEllipse([Drawing.Brushes]::White, $inset, $inset, $diameter, $diameter)
@@ -29,21 +28,67 @@ function New-IconPng([int] $size) {
     $ring.StartCap = 'Round'
     $ring.EndCap = 'Round'
     $graphics.DrawArc($ring, $inset, $inset, $diameter, $diameter, -90, 270)
+}
 
-    if ($size -le 24) {
-        # A scaled font outline turns to mush at these sizes; the rune drawn as lines on whole pixels stays sharp
-        $center = $size / 2
-        $half = [Math]::Round($size * 0.3)
-        $arm = [Math]::Round($size * 0.35) / 2
-        $quarter = $half / 2
-        $pen = New-Object Drawing.Pen $blue, 2
-        $graphics.DrawLines($pen, [Drawing.PointF[]] @(
-            (New-Object Drawing.PointF ($center - $arm), ($center - $quarter)),
-            (New-Object Drawing.PointF ($center + $arm), ($center + $quarter)),
-            (New-Object Drawing.PointF $center, ($center + $half)),
-            (New-Object Drawing.PointF $center, ($center - $half)),
-            (New-Object Drawing.PointF ($center + $arm), ($center - $quarter)),
-            (New-Object Drawing.PointF ($center - $arm), ($center + $quarter))))
+function New-IconPng([int] $size) {
+    $bitmap = New-Object Drawing.Bitmap $size, $size
+    $graphics = [Drawing.Graphics]::FromImage($bitmap)
+    $graphics.SmoothingMode = 'AntiAlias'
+    # Pixel x covers x to x + 1 as for SetPixel; by default GDI+ centers it on x, which moves the ring half a pixel
+    $graphics.PixelOffsetMode = 'Half'
+    # Slimmer from 64 px up; smaller sizes need heavier strokes to stay readable, and the ring whole pixels,
+    # or it blurs into the face
+    $large = $size -ge 64
+    $ringWidth = [Math]::Max([Math]::Round($size * $(if ($large) { 0.07 } else { 0.09 })), 2)
+    $inset = $ringWidth / 2
+    # The pixel rune is an odd number of pixels wide and high, so the ring shrinks by one pixel to an odd box
+    # as well: both then share a pixel's center, and the rune sits exactly in the middle
+    $diameter = $size - $ringWidth - $(if ($small.ContainsKey($size)) { 1 } else { 0 })
+
+    if ($small.ContainsKey($size)) {
+        # GDI+ anti-aliasing leans a few tenths of a pixel to the bottom right, which a 16 px ring shows as a
+        # heavier lower edge. Drawn 8 times larger and averaged down, each pixel gets its true coverage
+        $factor = 8
+        $fine = New-Object Drawing.Bitmap ($size * $factor), ($size * $factor)
+        $fineGraphics = [Drawing.Graphics]::FromImage($fine)
+        $fineGraphics.SmoothingMode = 'AntiAlias'
+        $fineGraphics.PixelOffsetMode = 'Half'
+        $fineGraphics.ScaleTransform($factor, $factor)
+        Draw-Ring $fineGraphics $ringWidth $inset $diameter
+        $fineGraphics.Dispose()
+        $count = $factor * $factor
+        for ($y = 0; $y -lt $size; $y++) {
+            for ($x = 0; $x -lt $size; $x++) {
+                # Colors weighted by alpha, so transparent samples do not darken the edge
+                $a = 0; $r = 0; $g = 0; $b = 0
+                for ($fy = 0; $fy -lt $factor; $fy++) {
+                    for ($fx = 0; $fx -lt $factor; $fx++) {
+                        $sample = $fine.GetPixel($x * $factor + $fx, $y * $factor + $fy)
+                        $a += $sample.A; $r += $sample.R * $sample.A; $g += $sample.G * $sample.A; $b += $sample.B * $sample.A
+                    }
+                }
+                if ($a -gt 0) {
+                    $bitmap.SetPixel($x, $y, [Drawing.Color]::FromArgb([Math]::Round($a / $count), [Math]::Round($r / $a), [Math]::Round($g / $a), [Math]::Round($b / $a)))
+                }
+            }
+        }
+        $fine.Dispose()
+    }
+    else {
+        Draw-Ring $graphics $ringWidth $inset $diameter
+    }
+
+    if ($small.ContainsKey($size)) {
+        # Centered on the ring's middle pixel
+        $rows = $small[$size]
+        $middle = ($size - 2) / 2
+        $left = $middle - ($rows[0].Length - 1) / 2
+        $top = $middle - ($rows.Count - 1) / 2
+        for ($y = 0; $y -lt $rows.Count; $y++) {
+            for ($x = 0; $x -lt $rows[$y].Length; $x++) {
+                if ($rows[$y][$x] -eq '#') { $bitmap.SetPixel($left + $x, $top + $y, $blue) }
+            }
+        }
     }
     else {
         # Same centering as TrayIconRenderer: the outline's real bounds, not the font's padded box

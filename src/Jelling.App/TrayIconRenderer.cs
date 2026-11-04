@@ -28,6 +28,14 @@ public static class TrayIconRenderer
 
     private const int SmCxSmIcon = 49;
 
+    /// <summary>
+    /// The app icon from the exe's own resources, at the tray's icon size. Read from the exe rather than from
+    /// Assets\AppIcon.ico, which is compiled in and not shipped as a file, neither in the ZIP nor in the package.
+    /// </summary>
+    public static Icon AppIcon() =>
+        Icon.ExtractIcon(Environment.ProcessPath!, 0, SmallIconSize()) ?? throw new InvalidOperationException("The exe has no icon.");
+
+    /// <summary>The glyph in a full ring, in one color: the tray icon in high contrast.</summary>
     public static Icon Render(string glyph, Color color) =>
         ToIcon(Size, graphics =>
         {

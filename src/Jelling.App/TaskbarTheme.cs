@@ -8,9 +8,9 @@ namespace Jelling.App;
 /// The colors the app draws into the taskbar with. Compared by value, so a theme event that changes
 /// nothing skips the redraw.
 /// </summary>
-/// <param name="Tray">The app's own tray icon.</param>
+/// <param name="Tray">The app's own tray icon in high contrast; null otherwise, when it shows the app icon.</param>
 /// <param name="Devices">The pinned devices, in the taskbar element or as tray icons.</param>
-internal sealed record TaskbarTheme(Color Tray, DeviceColors Devices)
+internal sealed record TaskbarTheme(Color? Tray, DeviceColors Devices)
 {
     /// <summary>Reads the high-contrast and light/dark settings once for all colors.</summary>
     public static TaskbarTheme Current(UISettings uiSettings)
@@ -30,8 +30,8 @@ internal sealed record TaskbarTheme(Color Tray, DeviceColors Devices)
         var light = TaskbarIsLight();
         var blue = light ? Color.FromArgb(0x00, 0x3A, 0x8C) : Color.FromArgb(0x6C, 0xB4, 0xFF);
         return light
-            ? new TaskbarTheme(blue, new DeviceColors(Color.Black, Color.FromArgb(0xC4, 0x2B, 0x1C), blue))
-            : new TaskbarTheme(blue, new DeviceColors(Color.White, Color.FromArgb(0xFF, 0x99, 0xA4), blue));
+            ? new TaskbarTheme(null, new DeviceColors(Color.Black, Color.FromArgb(0xC4, 0x2B, 0x1C), blue))
+            : new TaskbarTheme(null, new DeviceColors(Color.White, Color.FromArgb(0xFF, 0x99, 0xA4), blue));
     }
 
     // The taskbar follows the system theme, not the app theme; line glyphs need its contrast color

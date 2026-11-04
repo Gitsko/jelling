@@ -95,7 +95,7 @@ public partial class App : Application
         _trayIcon = new TaskbarIcon
         {
             ToolTipText = title,
-            Icon = TrayIconRenderer.Render(TrayGlyph, _theme.Tray),
+            Icon = TrayImage(_theme),
             NoLeftClickDelay = true,
             LeftClickCommand = new RelayCommand(ToggleFlyout),
             ContextMenuMode = ContextMenuMode.PopupMenu,
@@ -164,12 +164,16 @@ public partial class App : Application
         _theme = theme;
 
         // TaskbarIcon disposes the image it replaces
-        _trayIcon.Icon = TrayIconRenderer.Render(TrayGlyph, theme.Tray);
+        _trayIcon.Icon = TrayImage(theme);
 
         // Device icons re-render because their look includes the color; the flyout rows follow
         // the theme by themselves, and rebuilding them would close an open threshold list
         ShowInTaskbar();
     });
+
+    // High contrast allows only the theme's own colors, so the colored app icon gives way to a one-color one there
+    private static System.Drawing.Icon TrayImage(TaskbarTheme theme) =>
+        theme.Tray is { } color ? TrayIconRenderer.Render(TrayGlyph, color) : TrayIconRenderer.AppIcon();
 
     // The widget, the taskbar element and the device icons open the same menu as the app's tray icon
     private void ShowMenu()
