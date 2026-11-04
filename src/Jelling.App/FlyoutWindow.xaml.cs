@@ -28,7 +28,7 @@ public sealed partial class FlyoutWindow : Window, IDisposable
     // Far outside every monitor, as Windows itself places minimized windows
     private const int OffScreen = -32000;
 
-    // The row template's measures, for the header above the threshold lists
+    // The row template's measures in FlyoutWindow.xaml, for the header above the threshold lists
     private const double ToggleWidth = 32;
     private const double ToggleSpacing = 4;
     private const double RowColumnSpacing = 12;
@@ -75,11 +75,11 @@ public sealed partial class FlyoutWindow : Window, IDisposable
         };
     }
 
-    /// <summary>Raised with the device id when its "show in taskbar" button is clicked.</summary>
-    public event EventHandler<Guid>? TaskbarToggled;
+    /// <summary>Raised with the device id and the state its "show in taskbar" button now shows.</summary>
+    public event EventHandler<(Guid DeviceId, bool Shown)>? TaskbarToggled;
 
-    /// <summary>Raised with the device id when its "show on the widget" button is clicked.</summary>
-    public event EventHandler<Guid>? WidgetToggled;
+    /// <summary>Raised with the device id and the state its "show on the widget" button now shows.</summary>
+    public event EventHandler<(Guid DeviceId, bool Shown)>? WidgetToggled;
 
     /// <summary>Raised when a device's low threshold is picked from its list.</summary>
     public event EventHandler<(Guid DeviceId, int Threshold)>? LowThresholdChanged;
@@ -220,16 +220,21 @@ public sealed partial class FlyoutWindow : Window, IDisposable
     private void OnCloseClick(object sender, RoutedEventArgs args) => HideFlyout();
 
     // Events inside a DataTemplate reach the window; the clicked row is the button's DataContext
-    private void OnTaskbarClick(object sender, RoutedEventArgs args) => OnShownClick(sender, TaskbarToggled);
+    private void OnTaskbarClick(object sender, RoutedEventArgs args) =>
+        OnShownClick(sender, TaskbarToggled, item => !item.InTaskbar);
 
-    private void OnWidgetClick(object sender, RoutedEventArgs args) => OnShownClick(sender, WidgetToggled);
+    private void OnWidgetClick(object sender, RoutedEventArgs args) =>
+        OnShownClick(sender, WidgetToggled, item => !item.OnWidget);
 
-    private void OnShownClick(object sender, EventHandler<Guid>? toggled)
+    // The row's state, not the button's: a row not rebuilt after an unchanged list keeps its button's own
+    // IsChecked, which can differ from the settings; the user asked for the opposite of what the row shows
+    private void OnShownClick(
+        object sender, EventHandler<(Guid DeviceId, bool Shown)>? toggled, Func<DeviceItem, bool> shown)
     {
         if (sender is FrameworkElement { DataContext: DeviceItem item } button)
         {
             var name = button.Name;
-            toggled?.Invoke(this, item.Id);
+            toggled?.Invoke(this, (item.Id, shown(item)));
             FocusInRow<ToggleButton>(item.Id, name);
         }
     }

@@ -63,8 +63,8 @@ public partial class App : Application
         AppInstance.GetCurrent().Activated += (_, _) => dispatcher.TryEnqueue(OpenFlyout);
 
         _flyout = new FlyoutWindow();
-        _flyout.TaskbarToggled += (_, deviceId) => ToggleShown(() => _settings.TogglePin(deviceId));
-        _flyout.WidgetToggled += (_, deviceId) => ToggleShown(() => _settings.ToggleWidget(deviceId));
+        _flyout.TaskbarToggled += (_, e) => ChangeShown(() => _settings.SetPinned(e.DeviceId, e.Shown));
+        _flyout.WidgetToggled += (_, e) => ChangeShown(() => _settings.SetOnWidget(e.DeviceId, e.Shown));
         _flyout.LowThresholdChanged += (_, change) => SetLowThreshold(change.DeviceId, change.Threshold);
         _flyout.RowsOutdated += (_, _) => ShowLastDevices();
         _deviceIcons = new DeviceTrayIcons(ToggleFlyout, ShowMenu);
@@ -89,7 +89,7 @@ public partial class App : Application
         var title = Strings.Get("FlyoutHeader/Text");
         var menu = TrayMenu.Create(
             title, () => _settings.LevelDisplay, display => Redraw(() => _settings.SetLevelDisplay(display)),
-            () => _settings.ShowWidget, SetShowWidget,
+            () => _settings.ShowWidget, show => ChangeShown(() => _settings.SetShowWidget(show)),
             () => _settings.WidgetLevelDisplay, display => Redraw(() => _settings.SetWidgetLevelDisplay(display)),
             () => _settings.WidgetShowNames, show => Redraw(() => _settings.SetWidgetShowNames(show)),
             () => _settings.WidgetScale, scale => Redraw(() => _settings.SetWidgetScale(scale)),
@@ -253,7 +253,7 @@ public partial class App : Application
     }
 
     // The tray icons stand in while the taskbar has no room for the element or Explorer is restarting.
-    // The desktop widget shows the devices put on it, whichever of the two has the taskbar's
+    // The desktop widget shows its own choice of devices, wherever the taskbar's are drawn
     private void ShowInTaskbar()
     {
         if (_shuttingDown)
@@ -281,18 +281,13 @@ public partial class App : Application
         }
     }
 
-    private void ToggleShown(Action change)
+    // Rebuilds the flyout's rows too: their buttons show where each device is, and they offer the widget
+    // button only while the widget is on
+    private void ChangeShown(Action change)
     {
         Save(change);
 
         // From the last list: where a device shows is a local change, there is nothing new to ask Windows for
-        ShowLastDevices();
-    }
-
-    // The flyout's rows offer the widget buttons only while the widget is on, so they are rebuilt too
-    private void SetShowWidget(bool show)
-    {
-        Save(() => _settings.SetShowWidget(show));
         ShowLastDevices();
     }
 
