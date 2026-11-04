@@ -43,7 +43,9 @@ public static class TaskbarStripRenderer
     // cannot stretch the whole widget; its column is as wide as the badge or the capped name, whichever is wider
     private const float NameSizeEpx = 11;
     private const float NameRowEpx = 12;
-    private const float NameTopEpx = 39;
+
+    // The name starts this far above the badge row's bottom, in the empty space below the glyphs
+    private const float NameOverlapEpx = 9;
     private const float NameHeightEpx = 15;
     private const float NameMaxWidthEpx = 68;
     private const int NameAlpha = 0xB0;
@@ -79,10 +81,13 @@ public static class TaskbarStripRenderer
             Alignment = StringAlignment.Center,
             Trimming = StringTrimming.EllipsisCharacter,
         };
+
+        // GenericTypographic draws past the rectangle; a cut-off name must end at its ellipsis, not run on
+        nameFormat.FormatFlags &= ~StringFormatFlags.NoClip;
         var padding = (float)(PaddingEpx * scale);
         var gap = (float)(GapEpx * scale);
         var ringSize = (float)(RingSizeEpx * scale);
-        var showNames = plate is not null && badges.Any(badge => !string.IsNullOrEmpty(badge.Name));
+        var showNames = plate is not null && badges.Any(badge => !string.IsNullOrWhiteSpace(badge.Name));
         var fullHeight = showNames ? height + (int)Math.Round(NameRowEpx * scale) : height;
 
         // Measured and placed in one pass, so the strip's width cannot drift from what is drawn
@@ -128,7 +133,7 @@ public static class TaskbarStripRenderer
 
                 // A name wider than the badge widens its column; the badge then sits in the column's middle
                 var name = RectangleF.Empty;
-                if (showNames && !string.IsNullOrEmpty(badge.Name))
+                if (showNames && !string.IsNullOrWhiteSpace(badge.Name))
                 {
                     var nameWidth = MathF.Min(
                         measure.MeasureString(badge.Name, nameFont, PointF.Empty, nameFormat).Width + 1,
@@ -140,7 +145,7 @@ public static class TaskbarStripRenderer
                     ring.Offset(shift, 0);
                     x = start + nameColumn;
                     name = new RectangleF(
-                        start + (nameColumn - nameWidth) / 2, (float)(NameTopEpx * scale), nameWidth, (float)(NameHeightEpx * scale));
+                        start + (nameColumn - nameWidth) / 2, height - (float)(NameOverlapEpx * scale), nameWidth, (float)(NameHeightEpx * scale));
                 }
 
                 var bounds = Rectangle.FromLTRB((int)MathF.Round(start), 0, (int)MathF.Round(x), fullHeight);
