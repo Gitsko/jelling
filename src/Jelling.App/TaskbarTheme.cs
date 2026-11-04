@@ -32,24 +32,32 @@ internal sealed record TaskbarTheme(Color? Tray, DeviceColors Devices, DeviceCol
         // lightness reads on both
         // The widget lies on any wallpaper, so it brings its own plate and takes the app theme, like the
         // system's flyouts; the taskbar follows the system theme
-        var devices = ForLightness(IsLight("SystemUsesLightTheme"));
+        var devices = ForTaskbar(IsLight("SystemUsesLightTheme"));
         var appsLight = IsLight("AppsUseLightTheme");
 
         // The flyouts' solid fallback colors at 85 %: the wallpaper shows through, yet the glyphs, rings
-        // and names stay readable on a busy photo. The edge keeps a light plate off a light wallpaper
+        // and names stay readable on a busy photo. The edge keeps a light plate off a light wallpaper.
+        // A black wallpaper darkens the light plate to about D4D4D4, a white one lightens the dark plate to
+        // about 4C4C4C; the widget's colors are picked to read on those too
         var plate = appsLight
             ? new WidgetPlate(Color.FromArgb(0xD9, 0xF9, 0xF9, 0xF9), Color.FromArgb(0x1A, 0, 0, 0), Shadow: true)
             : new WidgetPlate(Color.FromArgb(0xD9, 0x2C, 0x2C, 0x2C), Color.FromArgb(0x1F, 0xFF, 0xFF, 0xFF), Shadow: true);
-        return new TaskbarTheme(null, devices, ForLightness(appsLight), plate);
+        return new TaskbarTheme(null, devices, ForPlate(appsLight), plate);
     }
 
-    private static DeviceColors ForLightness(bool light)
+    private static DeviceColors ForTaskbar(bool light)
     {
         var blue = Color.FromArgb(0x00, 0x82, 0xFC);
         return light
             ? new DeviceColors(Color.Black, Color.FromArgb(0xC4, 0x2B, 0x1C), blue)
             : new DeviceColors(Color.White, Color.FromArgb(0xFF, 0x99, 0xA4), blue);
     }
+
+    // Darker red and blue on the light plate, lighter ones on the dark plate: the low digits keep 4.5:1
+    // and the ring 3:1 even where the wallpaper shows through at its worst
+    private static DeviceColors ForPlate(bool light) => light
+        ? new DeviceColors(Color.Black, Color.FromArgb(0xA4, 0x26, 0x2C), Color.FromArgb(0x00, 0x67, 0xC0))
+        : new DeviceColors(Color.White, Color.FromArgb(0xFF, 0xB3, 0xBA), Color.FromArgb(0x4C, 0xC2, 0xFF));
 
     private static bool IsLight(string setting)
     {
