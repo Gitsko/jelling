@@ -16,7 +16,7 @@ With "Show battery level as" set to "Symbol only" in the right-click menu, only 
 
 ![The same two devices as symbols only](assets/readme/taskbar-symbols.png)
 
-The desktop widget shows the same devices in the same frame, wherever you drop it:
+The desktop widget shows the same devices on a plate of its own, wherever you drop it:
 
 ![The two pinned devices in the widget on the desktop](assets/readme/widget.png)
 
@@ -31,14 +31,14 @@ The screenshots show the German interface; on an English Windows the app is in E
 
 ### Taskbar
 
-- The pin button next to a device ("Show in taskbar") puts it in the taskbar while it is connected, left of the overflow arrow: the device symbol with its level to the right, black or white like the Windows icons. Hovering shows name and level, clicking opens the flyout
-- "Show battery level as" in the right-click menu: "Number" (the default), "Ring around the icon", a blue ring that fills with the level, or "Symbol only". The choice applies to the taskbar, the notification area icons and the widget. The tooltip always names the level
+- The pin button next to a device ("Show in taskbar") puts it in the taskbar while it is connected, left of the overflow arrow: the device symbol with its level to the right, black or white like the Windows icons. Hovering shows name and level, clicking opens the flyout, right-clicking opens the same menu as the Bluetooth icon
+- "Show battery level as" in the right-click menu: "Number" (the default), "Ring around the icon", a ring in Bluetooth blue that fills with the level, or "Symbol only". The choice applies to the taskbar, the notification area icons and the widget. The tooltip always names the level
 - With no room left of the overflow arrow, or with a vertical taskbar, the pinned devices get their own icons in the notification area instead. Jelling places them in the taskbar rather than behind the overflow arrow. If you hide them under Settings > Personalization > Taskbar > Other system tray icons, they stay hidden; Windows remembers this as long as Jelling stays in the same folder
 
 ### Desktop widget
 
-- "Widget on the desktop" in the right-click menu shows the pinned devices a second time, in a small frame on the desktop. It stays behind your windows and shows when you press Win+D
-- Drag it where you want it. It keeps that place after a restart and moves back onto a screen if its monitor is gone
+- "Widget on the desktop" in the right-click menu shows the pinned devices a second time, on a small plate on the desktop. The plate is nearly opaque, so the devices stay readable on any wallpaper, and it follows the Windows app mode (light or dark). It stays behind your windows and shows when you press Win+D
+- Drag it where you want it. It keeps that place after a restart and moves back onto a screen if its monitor is gone. Right-clicking it opens the menu
 - "Widget size" in the same menu makes it up to four times its normal size
 - "Lock widget position" stops it from moving. Clicking it opens the flyout
 - With no pinned device connected, the widget is hidden
