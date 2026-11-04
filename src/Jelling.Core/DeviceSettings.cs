@@ -4,10 +4,11 @@ namespace Jelling.Core;
 
 /// <summary>
 /// What the user set: per device whether it shows in the taskbar, whether on the widget, and its low
-/// threshold, for all devices how the level shows, and whether, where and how large the desktop widget
-/// shows. Stored as JSON; a missing file means nothing pinned, nothing on the widget, default thresholds,
-/// numbers shown and no widget. A file from before the widget had its own choice puts the pinned devices
-/// on it. One that is no valid JSON is kept aside as
+/// threshold, for all devices how the level shows in the taskbar and on the widget, and whether, where,
+/// how large and with or without names the desktop widget shows. Stored as JSON; a missing file means
+/// nothing pinned, nothing on the widget, default thresholds, numbers shown and no widget. A file from before the widget had its own
+/// choices puts the pinned devices on it and shows the level there as in the taskbar. One that is no valid
+/// JSON is kept aside as
 /// settings.invalid.json rather than overwritten. One that exists but cannot be read (locked, no access)
 /// reads as defaults too, but is never overwritten: each change reads it again first, and saving throws
 /// while it still cannot be read. Changes made meanwhile still apply, and once it reads they are applied
@@ -36,7 +37,10 @@ public sealed class DeviceSettings
     /// <summary>The sizes the widget is offered in, as multiples of its normal size.</summary>
     public static IReadOnlyList<int> WidgetScales { get; } = [1, 2, 3, 4];
 
+    /// <summary>How the level shows in the taskbar.</summary>
     public LevelDisplay LevelDisplay { get; private set; }
+
+    public LevelDisplay WidgetLevelDisplay { get; private set; }
 
     public bool ShowWidget { get; private set; }
 
@@ -45,6 +49,9 @@ public sealed class DeviceSettings
 
     /// <summary>The widget's top left corner in physical screen pixels; null until it was first moved.</summary>
     public PixelPoint? WidgetPosition { get; private set; }
+
+    /// <summary>True when the widget names each device below it.</summary>
+    public bool WidgetShowNames { get; private set; }
 
     /// <summary>One of <see cref="WidgetScales"/>.</summary>
     public int WidgetScale { get; private set; } = 1;
@@ -78,10 +85,22 @@ public sealed class DeviceSettings
         Apply(() => LevelDisplay = display);
     }
 
+    public void SetWidgetLevelDisplay(LevelDisplay display)
+    {
+        ReloadIfReadFailed();
+        Apply(() => WidgetLevelDisplay = display);
+    }
+
     public void SetShowWidget(bool show)
     {
         ReloadIfReadFailed();
         Apply(() => ShowWidget = show);
+    }
+
+    public void SetWidgetShowNames(bool show)
+    {
+        ReloadIfReadFailed();
+        Apply(() => WidgetShowNames = show);
     }
 
     public void SetWidgetLocked(bool locked)
@@ -169,9 +188,12 @@ public sealed class DeviceSettings
         // Only a missing list falls back to the pins; an empty one means the user took every device off
         _widget.Clear();
         _widget.UnionWith(stored?.WidgetDevices ?? stored?.PinnedDevices ?? []);
-        LevelDisplay = ReadLevelDisplay(stored);
+        LevelDisplay = ParseLevelDisplay(stored?.LevelDisplay)
+            ?? (stored?.LevelDisplay is null && stored?.ShowPercent == false ? LevelDisplay.Symbol : LevelDisplay.Number);
+        WidgetLevelDisplay = ParseLevelDisplay(stored?.WidgetLevelDisplay) ?? LevelDisplay;
         ShowWidget = stored?.ShowWidget ?? false;
         WidgetLocked = stored?.WidgetLocked ?? false;
+        WidgetShowNames = stored?.WidgetShowNames ?? false;
         WidgetPosition = stored?.WidgetPosition;
         WidgetScale = stored?.WidgetScale is { } scale && WidgetScales.Contains(scale) ? scale : 1;
 
@@ -202,7 +224,8 @@ public sealed class DeviceSettings
             // ShowPercent keeps an older version, after a downgrade, as close as it gets to the chosen display
             JsonSerializer.Serialize(stream, new Stored(
                 [.. _pinned], _lowThresholds, LevelDisplay == LevelDisplay.Number, ShowWidget, WidgetLocked, WidgetPosition,
-                LevelDisplay.ToString(), WidgetScale, [.. _widget]));
+                LevelDisplay.ToString(), WidgetScale, [.. _widget], WidgetLevelDisplay.ToString(),
+                WidgetShowNames));
             stream.Flush(flushToDisk: true);
         }
 
@@ -210,18 +233,13 @@ public sealed class DeviceSettings
     }
 
     // Stored as its name: an enum the serializer parses would throw for a hand-edited value and cost the whole
-    // file. Files from before the choice only know whether the number showed
-    private static LevelDisplay ReadLevelDisplay(Stored? stored)
-    {
-        if (Enum.TryParse<LevelDisplay>(stored?.LevelDisplay, ignoreCase: true, out var display)
-            && Enum.IsDefined(display)
-            && !int.TryParse(stored!.LevelDisplay, out _))
-        {
-            return display;
-        }
-
-        return stored?.LevelDisplay is null && stored?.ShowPercent == false ? LevelDisplay.Symbol : LevelDisplay.Number;
-    }
+    // file. Null for a missing or unknown one; files from before the choice only know whether the number showed
+    private static LevelDisplay? ParseLevelDisplay(string? stored) =>
+        Enum.TryParse<LevelDisplay>(stored, ignoreCase: true, out var display)
+        && Enum.IsDefined(display)
+        && !int.TryParse(stored, out _)
+            ? display
+            : null;
 
     private static Stored? Read(string path, out bool failed)
     {
@@ -259,5 +277,5 @@ public sealed class DeviceSettings
     private sealed record Stored(
         Guid[]? PinnedDevices, Dictionary<Guid, int>? LowThresholds, bool? ShowPercent,
         bool? ShowWidget, bool? WidgetLocked, PixelPoint? WidgetPosition, string? LevelDisplay, int? WidgetScale,
-        Guid[]? WidgetDevices);
+        Guid[]? WidgetDevices, string? WidgetLevelDisplay, bool? WidgetShowNames);
 }

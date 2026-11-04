@@ -19,32 +19,35 @@ public sealed record DeviceColors(Color Normal, Color Low, Color Ring)
 /// <param name="LevelColor">For the number or the ring, so a low level can stand out from the glyph.</param>
 /// <param name="RingPercent">The level the ring around the glyph is filled to; null draws no ring.</param>
 /// <param name="RingTrack">The color the ring's empty part takes, faded; null leaves it out.</param>
+/// <param name="Name">The device name the widget writes below the badge; null writes none.</param>
 public sealed record DeviceBadge(
     Guid Id, string Glyph, int? Percent, Color GlyphColor, Color LevelColor, string ToolTip,
-    int? RingPercent = null, Color? RingTrack = null)
+    int? RingPercent = null, Color? RingTrack = null, string? Name = null)
 {
     /// <summary>The connected devices the user put in the taskbar.</summary>
     public static IReadOnlyList<DeviceBadge> ForTaskbar(
         IReadOnlyList<BatteryDevice> devices, DeviceSettings settings, DeviceColors colors) =>
-        ForShown(devices, settings.IsPinned, settings, colors);
+        ForShown(devices, settings.IsPinned, settings.LevelDisplay, showNames: false, settings, colors);
 
     /// <summary>The connected devices the user put on the widget.</summary>
     public static IReadOnlyList<DeviceBadge> ForWidget(
         IReadOnlyList<BatteryDevice> devices, DeviceSettings settings, DeviceColors colors) =>
-        ForShown(devices, settings.IsOnWidget, settings, colors);
+        ForShown(devices, settings.IsOnWidget, settings.WidgetLevelDisplay, settings.WidgetShowNames, settings, colors);
 
     private static List<DeviceBadge> ForShown(
-        IReadOnlyList<BatteryDevice> devices, Func<Guid, bool> isShown, DeviceSettings settings, DeviceColors colors) =>
+        IReadOnlyList<BatteryDevice> devices, Func<Guid, bool> isShown, LevelDisplay display, bool showNames,
+        DeviceSettings settings, DeviceColors colors) =>
         devices
             .Where(d => d.IsConnected && isShown(d.Id))
-            .Select(d => For(d, settings, colors))
+            .Select(d => For(d, display, showNames, settings, colors))
             .ToList();
 
-    private static DeviceBadge For(BatteryDevice device, DeviceSettings settings, DeviceColors colors)
+    private static DeviceBadge For(
+        BatteryDevice device, LevelDisplay display, bool showNames, DeviceSettings settings, DeviceColors colors)
     {
         // High contrast has no warning color (Low equals Normal); the tooltip names a low level either way
         var look = BadgeContent.For(
-            device.BatteryPercent, settings.LowThreshold(device.Id), settings.LevelDisplay, hasLowColor: colors.Low != colors.Normal);
+            device.BatteryPercent, settings.LowThreshold(device.Id), display, hasLowColor: colors.Low != colors.Normal);
 
         var level = device.BatteryPercent is { } percent ? DeviceText.FormatPercent(percent) : null;
         var toolTip = BadgeContent.ToolTip(device.Name, look.IsLow ? $"{level} ({DeviceText.LowLevelText})" : level);
@@ -58,6 +61,7 @@ public sealed record DeviceBadge(
             toolTip,
             look.RingPercent,
             // High contrast has no translucent colors; the ring's fill alone shows the level there
-            colors.IsHighContrast ? null : colors.Normal);
+            colors.IsHighContrast ? null : colors.Normal,
+            showNames ? device.Name : null);
     }
 }
