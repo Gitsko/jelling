@@ -9,7 +9,9 @@ namespace Jelling.App;
 /// in the level's color, shown in the taskbar rather than in the overflow. A faint line right of them sets them
 /// apart from the system icons; the tray leaves no room between icons to draw it in.
 /// </summary>
-public sealed class DeviceTrayIcons(Action onClick) : IDisposable
+/// <param name="onClick">Opens the flyout.</param>
+/// <param name="onRightClick">Opens the app's menu at the cursor.</param>
+public sealed class DeviceTrayIcons(Action onClick, Action onRightClick) : IDisposable
 {
     // Size is the pixel size the icon was rendered at; a changed display scale needs a new image
     private readonly Dictionary<Guid, (TaskbarIcon Icon, DeviceBadge Badge, int Size)> _icons = [];
@@ -141,6 +143,8 @@ public sealed class DeviceTrayIcons(Action onClick) : IDisposable
                 ToolTipText = toolTip,
                 NoLeftClickDelay = true,
                 LeftClickCommand = new RelayCommand(onClick),
+                // No menu of their own: the app's icon owns it, these only open it
+                RightClickCommand = new RelayCommand(onRightClick),
             };
         }
         catch

@@ -20,10 +20,25 @@ internal static partial class NativeMethods
     [LibraryImport("user32.dll")]
     public static partial uint GetDpiForWindow(IntPtr window);
 
+    [LibraryImport("user32.dll", EntryPoint = "GetCursorPos")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetCursorPosition(out CursorPoint point);
+
+    /// <summary>The cursor in screen pixels, or null when Windows cannot tell, e.g. on the secure desktop.</summary>
+    public static System.Drawing.Point? CursorPosition() =>
+        GetCursorPosition(out var point) ? new System.Drawing.Point(point.X, point.Y) : null;
+
     /// <summary>The primary taskbar's DPI, which follows a scale change without signing out; 0 while it is missing.</summary>
     public static uint TaskbarDpi()
     {
         var taskbar = FindWindow("Shell_TrayWnd", null);
         return taskbar == IntPtr.Zero ? 0 : GetDpiForWindow(taskbar);
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct CursorPoint
+    {
+        public int X;
+        public int Y;
     }
 }
