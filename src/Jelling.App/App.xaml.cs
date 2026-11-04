@@ -63,7 +63,8 @@ public partial class App : Application
         AppInstance.GetCurrent().Activated += (_, _) => dispatcher.TryEnqueue(OpenFlyout);
 
         _flyout = new FlyoutWindow();
-        _flyout.PinToggled += (_, deviceId) => TogglePin(deviceId);
+        _flyout.TaskbarToggled += (_, deviceId) => ToggleShown(() => _settings.TogglePin(deviceId));
+        _flyout.WidgetToggled += (_, deviceId) => ToggleShown(() => _settings.ToggleWidget(deviceId));
         _flyout.LowThresholdChanged += (_, change) => SetLowThreshold(change.DeviceId, change.Threshold);
         _flyout.RowsOutdated += (_, _) => ShowLastDevices();
         _deviceIcons = new DeviceTrayIcons(ToggleFlyout, ShowMenu);
@@ -88,7 +89,9 @@ public partial class App : Application
         var title = Strings.Get("FlyoutHeader/Text");
         var menu = TrayMenu.Create(
             title, () => _settings.LevelDisplay, display => Redraw(() => _settings.SetLevelDisplay(display)),
-            () => _settings.ShowWidget, show => Redraw(() => _settings.SetShowWidget(show)),
+            () => _settings.ShowWidget, SetShowWidget,
+            () => _settings.WidgetLevelDisplay, display => Redraw(() => _settings.SetWidgetLevelDisplay(display)),
+            () => _settings.WidgetShowNames, show => Redraw(() => _settings.SetWidgetShowNames(show)),
             () => _settings.WidgetScale, scale => Redraw(() => _settings.SetWidgetScale(scale)),
             () => _settings.WidgetLocked, locked => Save(() => _settings.SetWidgetLocked(locked)), Shutdown, Guard);
 
@@ -243,13 +246,14 @@ public partial class App : Application
         }
 
         _flyout?.SetDevices(_devices
-            .Select(d => DeviceItem.From(d, _settings.IsPinned(d.Id), _settings.LowThreshold(d.Id)))
+            .Select(d => DeviceItem.From(
+                d, _settings.IsPinned(d.Id), _settings.ShowWidget, _settings.IsOnWidget(d.Id), _settings.LowThreshold(d.Id)))
             .ToList());
         ShowInTaskbar();
     }
 
     // The tray icons stand in while the taskbar has no room for the element or Explorer is restarting.
-    // The desktop widget shows the same devices, whichever of the two has them
+    // The desktop widget shows the devices put on it, whichever of the two has the taskbar's
     private void ShowInTaskbar()
     {
         if (_shuttingDown)
@@ -257,11 +261,11 @@ public partial class App : Application
             return;
         }
 
-        var badges = DeviceBadge.ForPinned(_devices, _settings, _theme.Devices);
+        var badges = DeviceBadge.ForTaskbar(_devices, _settings, _theme.Devices);
         var inElement = _taskbarElement?.Show(badges, _theme.Devices) == true;
         _deviceIcons?.Update(inElement ? [] : badges, _theme.Devices);
         // The widget takes the app theme on its own plate, so its badges get colors of their own
-        var widgetBadges = _settings.ShowWidget ? DeviceBadge.ForPinned(_devices, _settings, _theme.Widget) : [];
+        var widgetBadges = _settings.ShowWidget ? DeviceBadge.ForWidget(_devices, _settings, _theme.Widget) : [];
         _desktopWidget?.Show(widgetBadges, _theme.Widget, _theme.Plate, _settings.WidgetPosition, _settings.WidgetScale);
     }
 
@@ -277,11 +281,18 @@ public partial class App : Application
         }
     }
 
-    private void TogglePin(Guid deviceId)
+    private void ToggleShown(Action change)
     {
-        Save(() => _settings.TogglePin(deviceId));
+        Save(change);
 
-        // From the last list: the pin is a local change, there is nothing new to ask Windows for
+        // From the last list: where a device shows is a local change, there is nothing new to ask Windows for
+        ShowLastDevices();
+    }
+
+    // The flyout's rows offer the widget buttons only while the widget is on, so they are rebuilt too
+    private void SetShowWidget(bool show)
+    {
+        Save(() => _settings.SetShowWidget(show));
         ShowLastDevices();
     }
 

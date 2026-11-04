@@ -15,8 +15,9 @@ public sealed record DeviceItem(
     string BatteryText,
     bool HasLevel,
     bool IsLow,
-    string PinGlyph,
-    string PinLabel,
+    bool InTaskbar,
+    bool ShowsWidgetToggle,
+    bool OnWidget,
     int LowThresholdIndex)
 {
     private static readonly IReadOnlyList<string> LowThresholdLabels = BatteryLevel.LowThresholds
@@ -25,6 +26,8 @@ public sealed record DeviceItem(
 
     private static readonly string LowThresholdToolTipText = Strings.Get("LowThresholdToolTip");
     private static readonly string LowThresholdLabel = Strings.Get("LowThreshold");
+    private static readonly string TaskbarLabelText = Strings.Get("ShowInTaskbar");
+    private static readonly string WidgetLabelText = Strings.Get("ShowOnWidget");
 
     // The same for every row; x:Bind inside the item template only reaches instance members
     public IReadOnlyList<string> LowThresholdOptions => LowThresholdLabels;
@@ -41,8 +44,17 @@ public sealed record DeviceItem(
 
     public Visibility LowVisibility => IsLow ? Visibility.Visible : Visibility.Collapsed;
 
+    // Constant labels: the toggle buttons tell Narrator on or off themselves
+    public string TaskbarLabel => TaskbarLabelText;
+
+    public string WidgetLabel => WidgetLabelText;
+
     // Narrator names a button inside a list row without the row; the device name tells which one
-    public string PinAutomationName => $"{Name}: {PinLabel}";
+    public string TaskbarAutomationName => $"{Name}: {TaskbarLabel}";
+
+    public string WidgetAutomationName => $"{Name}: {WidgetLabel}";
+
+    public Visibility WidgetToggleVisibility => ShowsWidgetToggle ? Visibility.Visible : Visibility.Collapsed;
 
     // Narrator reads list items through ToString; the record default would dump every field.
     // It reads the "–" of a missing level as nothing, and the faded row of a disconnected device says nothing to it either
@@ -55,8 +67,9 @@ public sealed record DeviceItem(
             : $"{Name}, {status}, {battery}";
     }
 
+    /// <param name="showsWidgetToggle">Whether the widget is on, so the row offers to put the device on it.</param>
     /// <param name="lowThreshold">One of <see cref="BatteryLevel.LowThresholds"/>.</param>
-    public static DeviceItem From(BatteryDevice device, bool isPinned, int lowThreshold)
+    public static DeviceItem From(BatteryDevice device, bool inTaskbar, bool showsWidgetToggle, bool onWidget, int lowThreshold)
     {
         var (batteryGlyph, batteryText) = device.BatteryPercent is { } percent
             ? (DeviceText.GlyphForStep(BatteryLevel.ToStep(percent)), DeviceText.FormatPercent(percent))
@@ -71,8 +84,9 @@ public sealed record DeviceItem(
             batteryText,
             device.BatteryPercent is not null,
             device.BatteryPercent is { } level && BatteryLevel.IsLow(level, lowThreshold),
-            isPinned ? "\uE77A" : "\uE718",
-            Strings.Get(isPinned ? "Unpin" : "Pin"),
+            inTaskbar,
+            showsWidgetToggle,
+            onWidget,
             BatteryLevel.LowThresholds.IndexOf(lowThreshold));
     }
 }

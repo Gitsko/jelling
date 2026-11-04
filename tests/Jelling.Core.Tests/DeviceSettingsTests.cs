@@ -229,6 +229,186 @@ public sealed class DeviceSettingsTests : IDisposable
     }
 
     [Fact]
+    public void MissingFileMeansNothingOnTheWidget()
+    {
+        Assert.False(new DeviceSettings(SettingsPath).IsOnWidget(Headset));
+    }
+
+    [Fact]
+    public void WidgetToggleSurvivesReloadWithoutPinning()
+    {
+        new DeviceSettings(SettingsPath).ToggleWidget(Headset);
+
+        var reloaded = new DeviceSettings(SettingsPath);
+
+        Assert.True(reloaded.IsOnWidget(Headset));
+        Assert.False(reloaded.IsPinned(Headset));
+        Assert.False(reloaded.IsOnWidget(Mouse));
+    }
+
+    [Fact]
+    public void SecondWidgetToggleTakesTheDeviceOff()
+    {
+        var settings = new DeviceSettings(SettingsPath);
+        settings.ToggleWidget(Headset);
+        settings.ToggleWidget(Headset);
+
+        Assert.False(new DeviceSettings(SettingsPath).IsOnWidget(Headset));
+    }
+
+    [Fact]
+    public void PinningLeavesTheWidgetAlone()
+    {
+        new DeviceSettings(SettingsPath).TogglePin(Headset);
+
+        var reloaded = new DeviceSettings(SettingsPath);
+
+        Assert.True(reloaded.IsPinned(Headset));
+        Assert.False(reloaded.IsOnWidget(Headset));
+    }
+
+    [Fact]
+    public void FileFromBeforeTheSplitShowsThePinnedDevicesOnTheWidget()
+    {
+        Directory.CreateDirectory(_folder);
+        File.WriteAllText(SettingsPath, $$"""{"PinnedDevices":["{{Headset}}"],"ShowWidget":true}""");
+
+        var settings = new DeviceSettings(SettingsPath);
+
+        Assert.True(settings.IsOnWidget(Headset));
+        Assert.True(settings.IsPinned(Headset));
+        Assert.False(settings.IsOnWidget(Mouse));
+    }
+
+    [Fact]
+    public void EmptyWidgetListIsNotFilledFromThePins()
+    {
+        Directory.CreateDirectory(_folder);
+        File.WriteAllText(SettingsPath, $$"""{"PinnedDevices":["{{Headset}}"],"WidgetDevices":[]}""");
+
+        Assert.False(new DeviceSettings(SettingsPath).IsOnWidget(Headset));
+    }
+
+    [Fact]
+    public void FileLockedAtStartIsReadBeforeTheFirstWidgetToggle()
+    {
+        new DeviceSettings(SettingsPath).ToggleWidget(Headset);
+        DeviceSettings settings;
+        using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            settings = new DeviceSettings(SettingsPath);
+        }
+
+        settings.ToggleWidget(Mouse);
+
+        var reloaded = new DeviceSettings(SettingsPath);
+        Assert.True(reloaded.IsOnWidget(Headset));
+        Assert.True(reloaded.IsOnWidget(Mouse));
+    }
+
+    [Fact]
+    public void WidgetToggleWhileLockedKeepsWhatTheUserSawAfterTheReload()
+    {
+        new DeviceSettings(SettingsPath).ToggleWidget(Headset);
+        DeviceSettings settings;
+        using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            // Read as defaults, so Headset looks off the widget and the toggle puts it on
+            settings = new DeviceSettings(SettingsPath);
+            Assert.Throws<IOException>(() => settings.ToggleWidget(Headset));
+        }
+
+        settings.SetLevelDisplay(LevelDisplay.Symbol);
+
+        Assert.True(new DeviceSettings(SettingsPath).IsOnWidget(Headset));
+    }
+
+    [Fact]
+    public void WidgetLevelDisplaySurvivesReloadWithoutChangingTheTaskbar()
+    {
+        new DeviceSettings(SettingsPath).SetWidgetLevelDisplay(LevelDisplay.Ring);
+
+        var reloaded = new DeviceSettings(SettingsPath);
+
+        Assert.Equal(LevelDisplay.Ring, reloaded.WidgetLevelDisplay);
+        Assert.Equal(LevelDisplay.Number, reloaded.LevelDisplay);
+    }
+
+    [Fact]
+    public void TaskbarLevelDisplayLeavesTheWidgetAlone()
+    {
+        var settings = new DeviceSettings(SettingsPath);
+        settings.SetWidgetLevelDisplay(LevelDisplay.Ring);
+        settings.SetLevelDisplay(LevelDisplay.Symbol);
+
+        var reloaded = new DeviceSettings(SettingsPath);
+
+        Assert.Equal(LevelDisplay.Ring, reloaded.WidgetLevelDisplay);
+        Assert.Equal(LevelDisplay.Symbol, reloaded.LevelDisplay);
+    }
+
+    [Theory]
+    [InlineData("""{"LevelDisplay":"Ring"}""", LevelDisplay.Ring)]
+    [InlineData("""{"ShowPercent":false}""", LevelDisplay.Symbol)]
+    [InlineData("""{"LevelDisplay":"Ring","WidgetLevelDisplay":"Bogus"}""", LevelDisplay.Ring)]
+    [InlineData("""{"LevelDisplay":"Ring","WidgetLevelDisplay":"Symbol"}""", LevelDisplay.Symbol)]
+    public void WidgetTakesTheTaskbarLevelDisplayUntilItHasOneOfItsOwn(string json, LevelDisplay expected)
+    {
+        Directory.CreateDirectory(_folder);
+        File.WriteAllText(SettingsPath, json);
+
+        Assert.Equal(expected, new DeviceSettings(SettingsPath).WidgetLevelDisplay);
+    }
+
+    [Fact]
+    public void FileLockedAtStartIsReadBeforeChangingTheWidgetLevelDisplay()
+    {
+        new DeviceSettings(SettingsPath).SetLevelDisplay(LevelDisplay.Symbol);
+        DeviceSettings settings;
+        using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            settings = new DeviceSettings(SettingsPath);
+        }
+
+        settings.SetWidgetLevelDisplay(LevelDisplay.Ring);
+
+        var reloaded = new DeviceSettings(SettingsPath);
+        Assert.Equal(LevelDisplay.Symbol, reloaded.LevelDisplay);
+        Assert.Equal(LevelDisplay.Ring, reloaded.WidgetLevelDisplay);
+    }
+
+    [Fact]
+    public void WidgetShowsNoNamesByDefault()
+    {
+        Assert.False(new DeviceSettings(SettingsPath).WidgetShowNames);
+    }
+
+    [Fact]
+    public void WidgetNamesSurviveReload()
+    {
+        new DeviceSettings(SettingsPath).SetWidgetShowNames(true);
+
+        Assert.True(new DeviceSettings(SettingsPath).WidgetShowNames);
+    }
+
+    [Fact]
+    public void FileLockedAtStartIsReadBeforeTurningOnTheWidgetNames()
+    {
+        new DeviceSettings(SettingsPath).ToggleWidget(Headset);
+        DeviceSettings settings;
+        using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            settings = new DeviceSettings(SettingsPath);
+        }
+
+        settings.SetWidgetShowNames(true);
+
+        var reloaded = new DeviceSettings(SettingsPath);
+        Assert.True(reloaded.IsOnWidget(Headset));
+        Assert.True(reloaded.WidgetShowNames);
+    }
+
+    [Fact]
     public void IgnoresStoredThresholdsThatAreNotOffered()
     {
         Directory.CreateDirectory(_folder);

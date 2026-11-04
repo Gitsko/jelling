@@ -43,10 +43,11 @@
             Grid.Row="1"
             IsItemClickEnabled="False"
             SelectionMode="None">
-            <!-- Sits above the threshold lists: right of it are the pin buttons (32), the column spacing (12)
-                 and the item's right padding (12) -->
+            <!-- Sits above the threshold lists: right of it are the taskbar and widget buttons, the column
+                 spacing (12) and the item's right padding (12). Its right margin is set with the rows -->
             <ListView.Header>
                 <TextBlock
+                    x:Name="LowThresholdHeader"
                     x:Uid="LowThresholdHeader"
                     Width="88"
                     Margin="0,0,56,2"
@@ -104,18 +105,40 @@
                             SelectedIndex="{x:Bind LowThresholdIndex}"
                             SelectionChanged="OnLowThresholdChanged"
                             ToolTipService.ToolTip="{x:Bind LowThresholdToolTip}" />
-                        <Button
+                        <!-- Checked, a toggle takes the accent fill from the theme; the transparent background
+                             only applies unchecked. The spacing is also in FlyoutWindow.ToggleSpacing -->
+                        <StackPanel
                             Grid.Column="5"
-                            Width="32"
-                            Height="32"
-                            Padding="0"
-                            AutomationProperties.Name="{x:Bind PinAutomationName}"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Click="OnPinClick"
-                            ToolTipService.ToolTip="{x:Bind PinLabel}">
-                            <FontIcon FontSize="14" Glyph="{x:Bind PinGlyph}" />
-                        </Button>
+                            Orientation="Horizontal"
+                            Spacing="4">
+                            <ToggleButton
+                                x:Name="TaskbarToggle"
+                                Width="32"
+                                Height="32"
+                                Padding="0"
+                                AutomationProperties.Name="{x:Bind TaskbarAutomationName}"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Click="OnTaskbarClick"
+                                IsChecked="{x:Bind InTaskbar}"
+                                ToolTipService.ToolTip="{x:Bind TaskbarLabel}">
+                                <FontIcon FontSize="14" Glyph="&#xE75B;" />
+                            </ToggleButton>
+                            <ToggleButton
+                                x:Name="WidgetToggle"
+                                Width="32"
+                                Height="32"
+                                Padding="0"
+                                AutomationProperties.Name="{x:Bind WidgetAutomationName}"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Click="OnWidgetClick"
+                                IsChecked="{x:Bind OnWidget}"
+                                ToolTipService.ToolTip="{x:Bind WidgetLabel}"
+                                Visibility="{x:Bind WidgetToggleVisibility}">
+                                <FontIcon FontSize="14" Glyph="&#xF246;" />
+                            </ToggleButton>
+                        </StackPanel>
                     </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>
