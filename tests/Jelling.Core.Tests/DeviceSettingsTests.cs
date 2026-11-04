@@ -324,6 +324,60 @@ public sealed class DeviceSettingsTests : IDisposable
     }
 
     [Fact]
+    public void WidgetLevelDisplaySurvivesReloadWithoutChangingTheTaskbar()
+    {
+        new DeviceSettings(SettingsPath).SetWidgetLevelDisplay(LevelDisplay.Ring);
+
+        var reloaded = new DeviceSettings(SettingsPath);
+
+        Assert.Equal(LevelDisplay.Ring, reloaded.WidgetLevelDisplay);
+        Assert.Equal(LevelDisplay.Number, reloaded.LevelDisplay);
+    }
+
+    [Fact]
+    public void TaskbarLevelDisplayLeavesTheWidgetAlone()
+    {
+        var settings = new DeviceSettings(SettingsPath);
+        settings.SetWidgetLevelDisplay(LevelDisplay.Ring);
+        settings.SetLevelDisplay(LevelDisplay.Symbol);
+
+        var reloaded = new DeviceSettings(SettingsPath);
+
+        Assert.Equal(LevelDisplay.Ring, reloaded.WidgetLevelDisplay);
+        Assert.Equal(LevelDisplay.Symbol, reloaded.LevelDisplay);
+    }
+
+    [Theory]
+    [InlineData("""{"LevelDisplay":"Ring"}""", LevelDisplay.Ring)]
+    [InlineData("""{"ShowPercent":false}""", LevelDisplay.Symbol)]
+    [InlineData("""{"LevelDisplay":"Ring","WidgetLevelDisplay":"Bogus"}""", LevelDisplay.Ring)]
+    [InlineData("""{"LevelDisplay":"Ring","WidgetLevelDisplay":"Symbol"}""", LevelDisplay.Symbol)]
+    public void WidgetTakesTheTaskbarLevelDisplayUntilItHasOneOfItsOwn(string json, LevelDisplay expected)
+    {
+        Directory.CreateDirectory(_folder);
+        File.WriteAllText(SettingsPath, json);
+
+        Assert.Equal(expected, new DeviceSettings(SettingsPath).WidgetLevelDisplay);
+    }
+
+    [Fact]
+    public void FileLockedAtStartIsReadBeforeChangingTheWidgetLevelDisplay()
+    {
+        new DeviceSettings(SettingsPath).SetLevelDisplay(LevelDisplay.Symbol);
+        DeviceSettings settings;
+        using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            settings = new DeviceSettings(SettingsPath);
+        }
+
+        settings.SetWidgetLevelDisplay(LevelDisplay.Ring);
+
+        var reloaded = new DeviceSettings(SettingsPath);
+        Assert.Equal(LevelDisplay.Symbol, reloaded.LevelDisplay);
+        Assert.Equal(LevelDisplay.Ring, reloaded.WidgetLevelDisplay);
+    }
+
+    [Fact]
     public void IgnoresStoredThresholdsThatAreNotOffered()
     {
         Directory.CreateDirectory(_folder);

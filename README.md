@@ -12,7 +12,7 @@ Pinned devices sit in the taskbar next to the notification area, here a headset 
 
 ![Two pinned devices in the Windows 11 taskbar](assets/readme/taskbar.png)
 
-With "Show battery level as" set to "Symbol only" in the right-click menu, only the symbols remain:
+With "Battery level in the taskbar" set to "Symbol only" in the right-click menu, only the symbols remain:
 
 ![The same two devices as symbols only](assets/readme/taskbar-symbols.png)
 
@@ -32,13 +32,14 @@ The screenshots show the German interface; on an English Windows the app is in E
 ### Taskbar
 
 - The taskbar button next to a device ("Show in taskbar") puts it in the taskbar while it is connected, left of the overflow arrow: the device symbol with its level to the right, black or white like the Windows icons. Hovering shows name and level, clicking opens the flyout, right-clicking opens the same menu as the Bluetooth icon
-- "Show battery level as" in the right-click menu: "Number" (the default), "Ring around the icon", a ring in Bluetooth blue that fills with the level, or "Symbol only". The choice applies to the taskbar, the notification area icons and the widget. The tooltip always names the level
+- "Battery level in the taskbar" in the right-click menu: "Number" (the default), "Ring around the icon", a ring in Bluetooth blue that fills with the level, or "Symbol only". The choice applies to the taskbar and the notification area icons. The tooltip always names the level
 - With no room left of the overflow arrow, or with a vertical taskbar, the pinned devices get their own icons in the notification area instead. Jelling places them in the taskbar rather than behind the overflow arrow. If you hide them under Settings > Personalization > Taskbar > Other system tray icons, they stay hidden; Windows remembers this as long as Jelling stays in the same folder
 
 ### Desktop widget
 
 - "Widget on the desktop" in the right-click menu turns the widget on: a small plate on the desktop. While it is on, each device in the flyout gets a second button ("Show on the widget"), so the widget can show other devices than the taskbar. After an update from an older version, it starts with the devices that were pinned to the taskbar. The plate is nearly opaque, so the devices stay readable on any wallpaper, and it follows the Windows app mode (light or dark). It stays behind your windows and shows when you press Win+D
 - Drag it where you want it. It keeps that place after a restart and moves back onto a screen if its monitor is gone. Right-clicking it opens the menu
+- "Battery level on the widget" offers the same choices for the widget alone, so it can show rings while the taskbar shows numbers. After an update it starts with the taskbar's choice
 - "Widget size" in the same menu makes it up to four times its normal size
 - "Lock widget position" stops it from moving. Clicking it opens the flyout
 - With no device on the widget connected, the widget is hidden

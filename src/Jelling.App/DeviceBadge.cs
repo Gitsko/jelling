@@ -26,25 +26,26 @@ public sealed record DeviceBadge(
     /// <summary>The connected devices the user put in the taskbar.</summary>
     public static IReadOnlyList<DeviceBadge> ForTaskbar(
         IReadOnlyList<BatteryDevice> devices, DeviceSettings settings, DeviceColors colors) =>
-        ForShown(devices, settings.IsPinned, settings, colors);
+        ForShown(devices, settings.IsPinned, settings.LevelDisplay, settings, colors);
 
     /// <summary>The connected devices the user put on the widget.</summary>
     public static IReadOnlyList<DeviceBadge> ForWidget(
         IReadOnlyList<BatteryDevice> devices, DeviceSettings settings, DeviceColors colors) =>
-        ForShown(devices, settings.IsOnWidget, settings, colors);
+        ForShown(devices, settings.IsOnWidget, settings.WidgetLevelDisplay, settings, colors);
 
     private static List<DeviceBadge> ForShown(
-        IReadOnlyList<BatteryDevice> devices, Func<Guid, bool> isShown, DeviceSettings settings, DeviceColors colors) =>
+        IReadOnlyList<BatteryDevice> devices, Func<Guid, bool> isShown, LevelDisplay display, DeviceSettings settings,
+        DeviceColors colors) =>
         devices
             .Where(d => d.IsConnected && isShown(d.Id))
-            .Select(d => For(d, settings, colors))
+            .Select(d => For(d, display, settings, colors))
             .ToList();
 
-    private static DeviceBadge For(BatteryDevice device, DeviceSettings settings, DeviceColors colors)
+    private static DeviceBadge For(BatteryDevice device, LevelDisplay display, DeviceSettings settings, DeviceColors colors)
     {
         // High contrast has no warning color (Low equals Normal); the tooltip names a low level either way
         var look = BadgeContent.For(
-            device.BatteryPercent, settings.LowThreshold(device.Id), settings.LevelDisplay, hasLowColor: colors.Low != colors.Normal);
+            device.BatteryPercent, settings.LowThreshold(device.Id), display, hasLowColor: colors.Low != colors.Normal);
 
         var level = device.BatteryPercent is { } percent ? DeviceText.FormatPercent(percent) : null;
         var toolTip = BadgeContent.ToolTip(device.Name, look.IsLow ? $"{level} ({DeviceText.LowLevelText})" : level);

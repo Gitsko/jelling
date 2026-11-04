@@ -7,13 +7,15 @@ namespace Jelling.App;
 internal static class TrayMenu
 {
     /// <param name="setLevelDisplay">Saves the setting and redraws; the ticks then read <paramref name="levelDisplay"/> back.</param>
+    /// <param name="setWidgetLevelDisplay">Saves the setting and redraws the widget; the ticks read it back the same way.</param>
     /// <param name="setShowWidget">Saves the setting and shows or removes the widget; the tick reads it back the same way.</param>
     /// <param name="setWidgetScale">Saves the setting and redraws the widget; the ticks read it back the same way.</param>
     /// <param name="setWidgetLocked">Saves the setting; the tick reads it back the same way.</param>
     /// <param name="guard">Runs an action so that its failure is logged instead of ending the app.</param>
     public static MenuFlyout Create(
         string title, Func<LevelDisplay> levelDisplay, Action<LevelDisplay> setLevelDisplay,
-        Func<bool> showWidget, Action<bool> setShowWidget, Func<int> widgetScale, Action<int> setWidgetScale,
+        Func<bool> showWidget, Action<bool> setShowWidget, Func<LevelDisplay> widgetLevelDisplay,
+        Action<LevelDisplay> setWidgetLevelDisplay, Func<int> widgetScale, Action<int> setWidgetScale,
         Func<bool> widgetLocked, Action<bool> setWidgetLocked, Action exit, Action<string, Action> guard)
     {
         // PopupMenu mode turns the flyout into a native menu that only runs Command, not Click
@@ -31,12 +33,9 @@ internal static class TrayMenu
         }));
         menu.Items.Add(autoStart);
 
-        menu.Items.Add(Choice(Strings.Get("LevelDisplay"), levelDisplay, setLevelDisplay, [
-            (LevelDisplay.Number, Strings.Get("LevelDisplayNumber")),
-            (LevelDisplay.Ring, Strings.Get("LevelDisplayRing")),
-            (LevelDisplay.Symbol, Strings.Get("LevelDisplaySymbol")),
-        ]));
+        menu.Items.Add(Choice(Strings.Get("LevelDisplay"), levelDisplay, setLevelDisplay, LevelDisplays()));
         menu.Items.Add(Toggle(Strings.Get("ShowWidget"), showWidget, setShowWidget));
+        menu.Items.Add(Choice(Strings.Get("WidgetLevelDisplay"), widgetLevelDisplay, setWidgetLevelDisplay, LevelDisplays()));
         menu.Items.Add(Choice(Strings.Get("WidgetScale"), widgetScale, setWidgetScale,
             [.. DeviceSettings.WidgetScales.Select(scale => (scale, $"{scale}\u00D7"))]));
         menu.Items.Add(Toggle(Strings.Get("LockWidget"), widgetLocked, setWidgetLocked));
@@ -44,6 +43,13 @@ internal static class TrayMenu
         menu.Items.Add(new MenuFlyoutItem { Text = Strings.Get("Exit"), Command = new RelayCommand(exit) });
         return menu;
     }
+
+    private static IReadOnlyList<(LevelDisplay Value, string Text)> LevelDisplays() =>
+    [
+        (LevelDisplay.Number, Strings.Get("LevelDisplayNumber")),
+        (LevelDisplay.Ring, Strings.Get("LevelDisplayRing")),
+        (LevelDisplay.Symbol, Strings.Get("LevelDisplaySymbol")),
+    ];
 
     // RadioMenuFlyoutItem would only get its group behavior from XAML, which the native menu never runs; each
     // option's tick reads the setting back instead, so exactly the stored one shows

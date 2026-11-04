@@ -90,6 +90,7 @@ public partial class App : Application
         var menu = TrayMenu.Create(
             title, () => _settings.LevelDisplay, display => Redraw(() => _settings.SetLevelDisplay(display)),
             () => _settings.ShowWidget, SetShowWidget,
+            () => _settings.WidgetLevelDisplay, display => Redraw(() => _settings.SetWidgetLevelDisplay(display)),
             () => _settings.WidgetScale, scale => Redraw(() => _settings.SetWidgetScale(scale)),
             () => _settings.WidgetLocked, locked => Save(() => _settings.SetWidgetLocked(locked)), Shutdown, Guard);
 
