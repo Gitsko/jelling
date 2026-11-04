@@ -20,7 +20,7 @@ With "Battery level in the taskbar" set to "Symbol only" in the right-click menu
 
 The desktop widget shows its own choice of devices on a plate, wherever you drop it:
 
-![Two devices in the widget on the desktop](assets/readme/widget.png)
+<img src="assets/readme/widget.png" alt="Three devices with their names in the widget on the desktop" width="363">
 
 The screenshots show the German interface; on an English Windows the app is in English.
 
