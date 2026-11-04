@@ -24,6 +24,7 @@ public sealed partial class DesktopWidget : IDisposable
     private const double MarginEpx = 24;
 
     private readonly Action _onClick;
+    private readonly Action _onRightClick;
     private readonly Func<bool> _isLocked;
     private readonly Action<PixelPoint> _onMoved;
     private readonly DispatcherQueueTimer _timer;
@@ -51,9 +52,11 @@ public sealed partial class DesktopWidget : IDisposable
     private Point32 _pressCursor;
     private PixelPoint _pressPosition;
 
-    public DesktopWidget(Action onClick, Func<bool> isLocked, Action<PixelPoint> onMoved)
+    /// <param name="onRightClick">Opens the app's menu at the cursor.</param>
+    public DesktopWidget(Action onClick, Action onRightClick, Func<bool> isLocked, Action<PixelPoint> onMoved)
     {
         _onClick = onClick;
+        _onRightClick = onRightClick;
         _isLocked = isLocked;
         _onMoved = onMoved;
         _wndProc = OnMessage;
@@ -443,9 +446,11 @@ public sealed partial class DesktopWidget : IDisposable
                 return IntPtr.Zero;
 
             // DefWindowProc would turn a right click into WM_CONTEXTMENU and send it to the parent, where
-            // Explorer would open the desktop's own menu
-            case WmRButtonDown:
+            // Explorer would open the desktop's own menu; the widget opens the app's menu instead
             case WmRButtonUp:
+                Guard(_onRightClick);
+                return IntPtr.Zero;
+            case WmRButtonDown:
             case WmContextMenu:
                 return IntPtr.Zero;
 

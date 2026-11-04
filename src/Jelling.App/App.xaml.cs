@@ -66,10 +66,10 @@ public partial class App : Application
         _flyout.PinToggled += (_, deviceId) => TogglePin(deviceId);
         _flyout.LowThresholdChanged += (_, change) => SetLowThreshold(change.DeviceId, change.Threshold);
         _flyout.RowsOutdated += (_, _) => ShowLastDevices();
-        _deviceIcons = new DeviceTrayIcons(ToggleFlyout);
-        _taskbarElement = new TaskbarElement(ToggleFlyout);
+        _deviceIcons = new DeviceTrayIcons(ToggleFlyout, ShowMenu);
+        _taskbarElement = new TaskbarElement(ToggleFlyout, ShowMenu);
         _taskbarElement.AvailabilityChanged += (_, _) => ShowInTaskbarAfterRecheck();
-        _desktopWidget = new DesktopWidget(ToggleFlyout, () => _settings.WidgetLocked, position => Save(() => _settings.SetWidgetPosition(position)));
+        _desktopWidget = new DesktopWidget(ToggleFlyout, ShowMenu, () => _settings.WidgetLocked, position => Save(() => _settings.SetWidgetPosition(position)));
         _toasts = new ToastService(() => dispatcher.TryEnqueue(OpenFlyout));
         // The Store installs updates itself; pointing its users to the GitHub release would only confuse them
         if (!PackageIdentity.IsPackaged)
@@ -170,6 +170,17 @@ public partial class App : Application
         // the theme by themselves, and rebuilding them would close an open threshold list
         ShowInTaskbar();
     });
+
+    // The widget, the taskbar element and the device icons open the same menu as the app's tray icon
+    private void ShowMenu()
+    {
+        if (_shuttingDown || _trayIcon is null || NativeMethods.CursorPosition() is not { } cursor)
+        {
+            return;
+        }
+
+        _trayIcon.ShowContextMenu(cursor);
+    }
 
     private void ToggleFlyout()
     {
