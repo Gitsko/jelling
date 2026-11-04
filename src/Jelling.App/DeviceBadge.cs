@@ -47,7 +47,7 @@ public sealed record DeviceBadge(
     {
         // High contrast has no warning color (Low equals Normal); the tooltip names a low level either way
         var look = BadgeContent.For(
-            device.BatteryPercent, settings.LowThreshold(device.Id), display, hasLowColor: colors.Low != colors.Normal);
+            device.BatteryPercent, settings.LowThreshold(device.Id), display, hasLowColor: !colors.IsHighContrast);
 
         var level = device.BatteryPercent is { } percent ? DeviceText.FormatPercent(percent) : null;
         var toolTip = BadgeContent.ToolTip(device.Name, look.IsLow ? $"{level} ({DeviceText.LowLevelText})" : level);

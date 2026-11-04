@@ -87,7 +87,7 @@ public static class TaskbarStripRenderer
         var padding = (float)(PaddingEpx * scale);
         var gap = (float)(GapEpx * scale);
         var ringSize = (float)(RingSizeEpx * scale);
-        var showNames = plate is not null && badges.Any(badge => !string.IsNullOrWhiteSpace(badge.Name));
+        var showNames = plate is not null && badges.Any(HasName);
         var fullHeight = showNames ? height + (int)Math.Round(NameRowEpx * scale) : height;
 
         // Measured and placed in one pass, so the strip's width cannot drift from what is drawn
@@ -133,13 +133,14 @@ public static class TaskbarStripRenderer
 
                 // A name wider than the badge widens its column; the badge then sits in the column's middle
                 var name = RectangleF.Empty;
-                if (showNames && !string.IsNullOrWhiteSpace(badge.Name))
+                if (showNames && HasName(badge))
                 {
                     var nameWidth = MathF.Min(
                         measure.MeasureString(badge.Name, nameFont, PointF.Empty, nameFormat).Width + 1,
                         (float)(NameMaxWidthEpx * scale));
-                    var nameColumn = MathF.Max(x - start, nameWidth + 2 * gap);
-                    var shift = (nameColumn - (x - start)) / 2;
+                    var badgeWidth = x - start;
+                    var nameColumn = MathF.Max(badgeWidth, nameWidth + 2 * gap);
+                    var shift = (nameColumn - badgeWidth) / 2;
                     glyph.Offset(shift, 0);
                     level.Offset(shift, 0);
                     ring.Offset(shift, 0);
@@ -201,6 +202,8 @@ public static class TaskbarStripRenderer
         return (bitmap, layout.Select(item => item.Bounds).ToList());
 
         Font GlyphFont(DeviceBadge badge) => badge.RingPercent is null ? glyphFont : ringGlyphFont;
+
+        static bool HasName(DeviceBadge badge) => !string.IsNullOrWhiteSpace(badge.Name);
     }
 
     // DrawString places a glyph by its advance and the font's line box, a pixel or so off its ink's middle. Inside a
