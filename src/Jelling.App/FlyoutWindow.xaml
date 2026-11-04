@@ -14,10 +14,22 @@
         KeyDown="OnRootKeyDown"
         RowDefinitions="Auto,*,Auto">
         <Grid Margin="12,0,0,4" ColumnDefinitions="*,Auto">
-            <TextBlock
-                x:Uid="FlyoutHeader"
-                VerticalAlignment="Center"
-                Style="{StaticResource BodyStrongTextBlockStyle}" />
+            <!-- As wide as the device symbols and as far from the text, so the title lines up with the names.
+                 Centered on the line, the logo sat above the capitals' middle; the margin moves it down without
+                 making the header taller -->
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <Image
+                    Width="20"
+                    Height="20"
+                    Margin="0,2,0,-2"
+                    VerticalAlignment="Center"
+                    AutomationProperties.AccessibilityView="Raw"
+                    Source="ms-appx:///Assets/AppIcon.png" />
+                <TextBlock
+                    x:Uid="FlyoutHeader"
+                    VerticalAlignment="Center"
+                    Style="{StaticResource BodyStrongTextBlockStyle}" />
+            </StackPanel>
             <Button
                 x:Uid="CloseButton"
                 Grid.Column="1"
