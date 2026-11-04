@@ -6,11 +6,11 @@ namespace Jelling.Core;
 /// What the user set: per device whether it shows in the taskbar, whether on the widget, and its low
 /// threshold, for all devices how the level shows in the taskbar and on the widget, and whether, where,
 /// how large and with or without names the desktop widget shows. Stored as JSON; a missing file means
-/// nothing pinned, nothing on the widget, default thresholds, numbers shown and no widget. A file from before the widget had its own
-/// choices puts the pinned devices on it and shows the level there as in the taskbar. One that is no valid
-/// JSON is kept aside as
-/// settings.invalid.json rather than overwritten. One that exists but cannot be read (locked, no access)
-/// reads as defaults too, but is never overwritten: each change reads it again first, and saving throws
+/// nothing pinned, nothing on the widget, default thresholds, numbers shown and no widget. A file from
+/// before the widget had its own choices puts the pinned devices on it and shows the level there as in
+/// the taskbar. One that is no valid JSON is kept aside as settings.invalid.json rather than overwritten.
+/// One that exists but cannot be read (locked, no access) reads as defaults too, but is never
+/// overwritten: each change reads it again first, and saving throws
 /// while it still cannot be read. Changes made meanwhile still apply, and once it reads they are applied
 /// again on top of what it holds.
 /// </summary>
@@ -63,9 +63,16 @@ public sealed class DeviceSettings
     public int LowThreshold(Guid deviceId) =>
         _lowThresholds.GetValueOrDefault(deviceId, BatteryLevel.DefaultLowThreshold);
 
-    public void TogglePin(Guid deviceId) => Toggle(_pinned, deviceId);
+    /// <param name="pinned">What the user chose, not a toggle: applied again after a reload it must not flip back.</param>
+    public void SetPinned(Guid deviceId, bool pinned) => Apply(() => Set(_pinned, deviceId, pinned));
 
-    public void ToggleWidget(Guid deviceId) => Toggle(_widget, deviceId);
+    /// <param name="onWidget">What the user chose, like <see cref="SetPinned"/>.</param>
+    public void SetOnWidget(Guid deviceId, bool onWidget) => Apply(() => Set(_widget, deviceId, onWidget));
+
+    // The opposite of what the user sees now, read before a reload that could change it
+    public void TogglePin(Guid deviceId) => SetPinned(deviceId, !IsPinned(deviceId));
+
+    public void ToggleWidget(Guid deviceId) => SetOnWidget(deviceId, !IsOnWidget(deviceId));
 
     /// <param name="threshold">One of <see cref="BatteryLevel.LowThresholds"/>.</param>
     public void SetLowThreshold(Guid deviceId, int threshold)
@@ -75,45 +82,20 @@ public sealed class DeviceSettings
             throw new ArgumentOutOfRangeException(nameof(threshold), threshold, "Not one of the offered thresholds");
         }
 
-        ReloadIfReadFailed();
         Apply(() => _lowThresholds[deviceId] = threshold);
     }
 
-    public void SetLevelDisplay(LevelDisplay display)
-    {
-        ReloadIfReadFailed();
-        Apply(() => LevelDisplay = display);
-    }
+    public void SetLevelDisplay(LevelDisplay display) => Apply(() => LevelDisplay = display);
 
-    public void SetWidgetLevelDisplay(LevelDisplay display)
-    {
-        ReloadIfReadFailed();
-        Apply(() => WidgetLevelDisplay = display);
-    }
+    public void SetWidgetLevelDisplay(LevelDisplay display) => Apply(() => WidgetLevelDisplay = display);
 
-    public void SetShowWidget(bool show)
-    {
-        ReloadIfReadFailed();
-        Apply(() => ShowWidget = show);
-    }
+    public void SetShowWidget(bool show) => Apply(() => ShowWidget = show);
 
-    public void SetWidgetShowNames(bool show)
-    {
-        ReloadIfReadFailed();
-        Apply(() => WidgetShowNames = show);
-    }
+    public void SetWidgetShowNames(bool show) => Apply(() => WidgetShowNames = show);
 
-    public void SetWidgetLocked(bool locked)
-    {
-        ReloadIfReadFailed();
-        Apply(() => WidgetLocked = locked);
-    }
+    public void SetWidgetLocked(bool locked) => Apply(() => WidgetLocked = locked);
 
-    public void SetWidgetPosition(PixelPoint position)
-    {
-        ReloadIfReadFailed();
-        Apply(() => WidgetPosition = position);
-    }
+    public void SetWidgetPosition(PixelPoint position) => Apply(() => WidgetPosition = position);
 
     /// <param name="scale">One of <see cref="WidgetScales"/>.</param>
     public void SetWidgetScale(int scale)
@@ -123,27 +105,19 @@ public sealed class DeviceSettings
             throw new ArgumentOutOfRangeException(nameof(scale), scale, "Not one of the offered widget sizes");
         }
 
-        ReloadIfReadFailed();
         Apply(() => WidgetScale = scale);
     }
 
-    private void Toggle(HashSet<Guid> devices, Guid deviceId)
+    private static void Set(HashSet<Guid> devices, Guid deviceId, bool shown)
     {
-        ReloadIfReadFailed();
-
-        // The state the user now sees, not a toggle: applied again after a reload it must not flip back
-        var add = !devices.Contains(deviceId);
-        Apply(() =>
+        if (shown)
         {
-            if (add)
-            {
-                devices.Add(deviceId);
-            }
-            else
-            {
-                devices.Remove(deviceId);
-            }
-        });
+            devices.Add(deviceId);
+        }
+        else
+        {
+            devices.Remove(deviceId);
+        }
     }
 
     // E.g. a virus scanner held the file at startup; once it can be read, the change builds on what it holds
@@ -162,8 +136,10 @@ public sealed class DeviceSettings
         }
     }
 
+    // Each change sets a value, so it can build on what a reload brought in and be applied again later
     private void Apply(Action change)
     {
+        ReloadIfReadFailed();
         change();
         if (_readFailed)
         {
