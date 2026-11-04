@@ -260,7 +260,9 @@ public partial class App : Application
         var badges = DeviceBadge.ForPinned(_devices, _settings, _theme.Devices);
         var inElement = _taskbarElement?.Show(badges, _theme.Devices) == true;
         _deviceIcons?.Update(inElement ? [] : badges, _theme.Devices);
-        _desktopWidget?.Show(_settings.ShowWidget ? badges : [], _theme.Devices, _settings.WidgetPosition, _settings.WidgetScale);
+        // The widget takes the app theme on its own plate, so its badges get colors of their own
+        var widgetBadges = _settings.ShowWidget ? DeviceBadge.ForPinned(_devices, _settings, _theme.Widget) : [];
+        _desktopWidget?.Show(widgetBadges, _theme.Widget, _theme.Plate, _settings.WidgetPosition, _settings.WidgetScale);
     }
 
     // Raised from the element's timer

@@ -7,7 +7,8 @@ using Microsoft.UI.Dispatching;
 namespace Jelling.App;
 
 /// <summary>
-/// The pinned devices on the desktop, drawn like the taskbar element: a layered child window of the window
+/// The pinned devices on the desktop, drawn like the taskbar element on a plate of their own, since any wallpaper
+/// may lie behind them: a layered child window of the window
 /// that holds Explorer's desktop icons, so it stays behind all other windows and still shows on Win+D.
 /// Unlocked, it moves with a drag; a click opens the flyout either way.
 /// </summary>
@@ -34,6 +35,7 @@ public sealed partial class DesktopWidget : IDisposable
 
     private IReadOnlyList<DeviceBadge> _badges = [];
     private DeviceColors? _colors;
+    private WidgetPlate? _plate;
     private PixelPoint? _stored;
     private int _sizeFactor = 1;
     private Bitmap? _strip;
@@ -86,12 +88,14 @@ public sealed partial class DesktopWidget : IDisposable
     /// <summary>Shows the badges on the desktop; an empty list removes the widget.</summary>
     /// <param name="stored">Where the user left the widget; null until it was first moved.</param>
     /// <param name="sizeFactor">One of <see cref="DeviceSettings.WidgetScales"/>; it keeps its top left corner as it grows.</param>
-    public void Show(IReadOnlyList<DeviceBadge> badges, DeviceColors colors, PixelPoint? stored, int sizeFactor)
+    /// <param name="plate">The surface the devices lie on.</param>
+    public void Show(IReadOnlyList<DeviceBadge> badges, DeviceColors colors, WidgetPlate plate, PixelPoint? stored, int sizeFactor)
     {
-        if (!badges.SequenceEqual(_badges) || colors != _colors || sizeFactor != _sizeFactor)
+        if (!badges.SequenceEqual(_badges) || colors != _colors || plate != _plate || sizeFactor != _sizeFactor)
         {
             _badges = badges;
             _colors = colors;
+            _plate = plate;
             _sizeFactor = sizeFactor;
             ReleaseStrip();
         }
@@ -172,7 +176,7 @@ public sealed partial class DesktopWidget : IDisposable
         {
             ReleaseStrip();
             var scale = dpi / 96.0 * _sizeFactor;
-            (_strip, _badgeBounds) = TaskbarStripRenderer.Render(_badges, _colors!, (int)Math.Round(HeightEpx * scale), scale);
+            (_strip, _badgeBounds) = TaskbarStripRenderer.Render(_badges, _colors!, (int)Math.Round(HeightEpx * scale), scale, _plate);
             _stripDpi = dpi;
         }
 
