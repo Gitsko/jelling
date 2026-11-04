@@ -24,7 +24,7 @@ public sealed class DeviceTrayIcons(Action onClick, Action onRightClick) : IDisp
 
     private (TaskbarIcon Icon, DeviceColors Colors, int Size)? _separator;
 
-    /// <param name="badges">From <see cref="DeviceBadge.ForPinned"/>; empty while the taskbar element shows them.</param>
+    /// <param name="badges">From <see cref="DeviceBadge.ForTaskbar"/>; empty while the taskbar element shows them.</param>
     /// <param name="colors">The taskbar's device colors, for the separator.</param>
     public void Update(IReadOnlyList<DeviceBadge> badges, DeviceColors colors)
     {

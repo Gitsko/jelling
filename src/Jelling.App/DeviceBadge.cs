@@ -12,7 +12,7 @@ public sealed record DeviceColors(Color Normal, Color Low, Color Ring)
 }
 
 /// <summary>
-/// What the taskbar shows for one pinned, connected device, in the taskbar element or as a tray icon.
+/// What the taskbar or the widget shows for one connected device: in the taskbar element, as a tray icon or on the widget.
 /// Compared by value, so refreshes that change nothing skip the redraw.
 /// </summary>
 /// <param name="Percent">The number next to the glyph; null shows none.</param>
@@ -23,10 +23,20 @@ public sealed record DeviceBadge(
     Guid Id, string Glyph, int? Percent, Color GlyphColor, Color LevelColor, string ToolTip,
     int? RingPercent = null, Color? RingTrack = null)
 {
-    public static IReadOnlyList<DeviceBadge> ForPinned(
+    /// <summary>The connected devices the user put in the taskbar.</summary>
+    public static IReadOnlyList<DeviceBadge> ForTaskbar(
         IReadOnlyList<BatteryDevice> devices, DeviceSettings settings, DeviceColors colors) =>
+        ForShown(devices, settings.IsPinned, settings, colors);
+
+    /// <summary>The connected devices the user put on the widget.</summary>
+    public static IReadOnlyList<DeviceBadge> ForWidget(
+        IReadOnlyList<BatteryDevice> devices, DeviceSettings settings, DeviceColors colors) =>
+        ForShown(devices, settings.IsOnWidget, settings, colors);
+
+    private static List<DeviceBadge> ForShown(
+        IReadOnlyList<BatteryDevice> devices, Func<Guid, bool> isShown, DeviceSettings settings, DeviceColors colors) =>
         devices
-            .Where(d => d.IsConnected && settings.IsPinned(d.Id))
+            .Where(d => d.IsConnected && isShown(d.Id))
             .Select(d => For(d, settings, colors))
             .ToList();
 

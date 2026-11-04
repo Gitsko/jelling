@@ -3,10 +3,11 @@ using System.Text.Json;
 namespace Jelling.Core;
 
 /// <summary>
-/// What the user set: per device whether it gets its own taskbar icon and its low threshold, for all
-/// devices how the level shows, and whether, where and how large the desktop widget shows. Stored as
-/// JSON; a missing file means nothing pinned, default thresholds, numbers shown and no widget; one that
-/// is no valid JSON is kept aside as
+/// What the user set: per device whether it shows in the taskbar, whether on the widget, and its low
+/// threshold, for all devices how the level shows, and whether, where and how large the desktop widget
+/// shows. Stored as JSON; a missing file means nothing pinned, nothing on the widget, default thresholds,
+/// numbers shown and no widget. A file from before the widget had its own choice puts the pinned devices
+/// on it. One that is no valid JSON is kept aside as
 /// settings.invalid.json rather than overwritten. One that exists but cannot be read (locked, no access)
 /// reads as defaults too, but is never overwritten: each change reads it again first, and saving throws
 /// while it still cannot be read. Changes made meanwhile still apply, and once it reads they are applied
@@ -16,6 +17,7 @@ public sealed class DeviceSettings
 {
     private readonly string _path;
     private readonly HashSet<Guid> _pinned = [];
+    private readonly HashSet<Guid> _widget = [];
     private readonly Dictionary<Guid, int> _lowThresholds = [];
 
     // The file holds settings this instance never saw; writing the defaults over them would lose them
@@ -49,27 +51,14 @@ public sealed class DeviceSettings
 
     public bool IsPinned(Guid deviceId) => _pinned.Contains(deviceId);
 
+    public bool IsOnWidget(Guid deviceId) => _widget.Contains(deviceId);
+
     public int LowThreshold(Guid deviceId) =>
         _lowThresholds.GetValueOrDefault(deviceId, BatteryLevel.DefaultLowThreshold);
 
-    public void TogglePin(Guid deviceId)
-    {
-        ReloadIfReadFailed();
+    public void TogglePin(Guid deviceId) => Toggle(_pinned, deviceId);
 
-        // The pin the user now sees, not a toggle: applied again after a reload it must not flip back
-        var pin = !_pinned.Contains(deviceId);
-        Apply(() =>
-        {
-            if (pin)
-            {
-                _pinned.Add(deviceId);
-            }
-            else
-            {
-                _pinned.Remove(deviceId);
-            }
-        });
-    }
+    public void ToggleWidget(Guid deviceId) => Toggle(_widget, deviceId);
 
     /// <param name="threshold">One of <see cref="BatteryLevel.LowThresholds"/>.</param>
     public void SetLowThreshold(Guid deviceId, int threshold)
@@ -119,6 +108,25 @@ public sealed class DeviceSettings
         Apply(() => WidgetScale = scale);
     }
 
+    private void Toggle(HashSet<Guid> devices, Guid deviceId)
+    {
+        ReloadIfReadFailed();
+
+        // The state the user now sees, not a toggle: applied again after a reload it must not flip back
+        var add = !devices.Contains(deviceId);
+        Apply(() =>
+        {
+            if (add)
+            {
+                devices.Add(deviceId);
+            }
+            else
+            {
+                devices.Remove(deviceId);
+            }
+        });
+    }
+
     // E.g. a virus scanner held the file at startup; once it can be read, the change builds on what it holds
     private void ReloadIfReadFailed()
     {
@@ -157,6 +165,10 @@ public sealed class DeviceSettings
 
         _pinned.Clear();
         _pinned.UnionWith(stored?.PinnedDevices ?? []);
+
+        // Only a missing list falls back to the pins; an empty one means the user took every device off
+        _widget.Clear();
+        _widget.UnionWith(stored?.WidgetDevices ?? stored?.PinnedDevices ?? []);
         LevelDisplay = ReadLevelDisplay(stored);
         ShowWidget = stored?.ShowWidget ?? false;
         WidgetLocked = stored?.WidgetLocked ?? false;
@@ -190,7 +202,7 @@ public sealed class DeviceSettings
             // ShowPercent keeps an older version, after a downgrade, as close as it gets to the chosen display
             JsonSerializer.Serialize(stream, new Stored(
                 [.. _pinned], _lowThresholds, LevelDisplay == LevelDisplay.Number, ShowWidget, WidgetLocked, WidgetPosition,
-                LevelDisplay.ToString(), WidgetScale));
+                LevelDisplay.ToString(), WidgetScale, [.. _widget]));
             stream.Flush(flushToDisk: true);
         }
 
@@ -246,5 +258,6 @@ public sealed class DeviceSettings
     // Older files lack the later fields; they then read as null
     private sealed record Stored(
         Guid[]? PinnedDevices, Dictionary<Guid, int>? LowThresholds, bool? ShowPercent,
-        bool? ShowWidget, bool? WidgetLocked, PixelPoint? WidgetPosition, string? LevelDisplay, int? WidgetScale);
+        bool? ShowWidget, bool? WidgetLocked, PixelPoint? WidgetPosition, string? LevelDisplay, int? WidgetScale,
+        Guid[]? WidgetDevices);
 }

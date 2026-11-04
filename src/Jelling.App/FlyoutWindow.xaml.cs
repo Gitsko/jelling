@@ -4,6 +4,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Windows.Foundation;
 using Windows.Graphics;
@@ -17,8 +18,9 @@ namespace Jelling.App;
 /// </summary>
 public sealed partial class FlyoutWindow : Window, IDisposable
 {
-    // Wider than the quick settings' 360 so the name keeps room next to the threshold list
-    private const int WidthEpx = 420;
+    // Wider than the quick settings' 360 so the name keeps room next to the threshold list; the widget
+    // buttons add their own width, so they take none of the name's
+    private const double WidthEpx = 420;
 
     // A tray click first deactivates (hides) the open flyout; without this the same click reopens it
     private const long ReopenGuardMs = 300;
@@ -26,11 +28,18 @@ public sealed partial class FlyoutWindow : Window, IDisposable
     // Far outside every monitor, as Windows itself places minimized windows
     private const int OffScreen = -32000;
 
+    // The row template's measures, for the header above the threshold lists
+    private const double ToggleWidth = 32;
+    private const double ToggleSpacing = 4;
+    private const double RowColumnSpacing = 12;
+    private const double RowRightPadding = 12;
+
     private DisplayArea? _displayArea;
     private double _scale = 1.0;
     private bool _hasTaskbar = true;
     private long _hiddenAt;
     private bool _disposed;
+    private double _widthEpx = WidthEpx;
 
     // A refresh came while a threshold list was open; its rows are rebuilt once the list closes
     private bool _rowsOutdated;
@@ -67,7 +76,10 @@ public sealed partial class FlyoutWindow : Window, IDisposable
     }
 
     /// <summary>Raised with the device id when its "show in taskbar" button is clicked.</summary>
-    public event EventHandler<Guid>? PinToggled;
+    public event EventHandler<Guid>? TaskbarToggled;
+
+    /// <summary>Raised with the device id when its "show on the widget" button is clicked.</summary>
+    public event EventHandler<Guid>? WidgetToggled;
 
     /// <summary>Raised when a device's low threshold is picked from its list.</summary>
     public event EventHandler<(Guid DeviceId, int Threshold)>? LowThresholdChanged;
@@ -91,6 +103,12 @@ public sealed partial class FlyoutWindow : Window, IDisposable
         }
 
         DeviceList.ItemsSource = devices;
+
+        // The header stays above the threshold lists however many buttons follow them
+        var widgetButtons = devices.Any(d => d.ShowsWidgetToggle) ? ToggleWidth + ToggleSpacing : 0;
+        var buttons = ToggleWidth + widgetButtons;
+        _widthEpx = WidthEpx + widgetButtons;
+        LowThresholdHeader.Margin = new Thickness(0, 0, buttons + RowColumnSpacing + RowRightPadding, 2);
         DeviceList.Visibility = devices.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         EmptyText.Visibility = devices.Count > 0 ? Visibility.Collapsed : Visibility.Visible;
 
@@ -171,7 +189,7 @@ public sealed partial class FlyoutWindow : Window, IDisposable
         }
 
         // Measured in effective pixels, so a larger Windows text size grows the flyout with it
-        Root.Measure(new Size(WidthEpx, double.PositiveInfinity));
+        Root.Measure(new Size(_widthEpx, double.PositiveInfinity));
         var heightEpx = Root.DesiredSize.Height;
         if (heightEpx <= 0)
         {
@@ -182,7 +200,7 @@ public sealed partial class FlyoutWindow : Window, IDisposable
             ToPixelRect(_displayArea.WorkArea),
             ToPixelRect(_displayArea.OuterBounds),
             _hasTaskbar,
-            (int)Math.Round(WidthEpx * _scale),
+            (int)Math.Round(_widthEpx * _scale),
             (int)Math.Ceiling(heightEpx * _scale),
             _scale);
 
@@ -202,12 +220,17 @@ public sealed partial class FlyoutWindow : Window, IDisposable
     private void OnCloseClick(object sender, RoutedEventArgs args) => HideFlyout();
 
     // Events inside a DataTemplate reach the window; the clicked row is the button's DataContext
-    private void OnPinClick(object sender, RoutedEventArgs args)
+    private void OnTaskbarClick(object sender, RoutedEventArgs args) => OnShownClick(sender, TaskbarToggled);
+
+    private void OnWidgetClick(object sender, RoutedEventArgs args) => OnShownClick(sender, WidgetToggled);
+
+    private void OnShownClick(object sender, EventHandler<Guid>? toggled)
     {
-        if (((FrameworkElement)sender).DataContext is DeviceItem item)
+        if (sender is FrameworkElement { DataContext: DeviceItem item } button)
         {
-            PinToggled?.Invoke(this, item.Id);
-            FocusInRow<Button>(item.Id);
+            var name = button.Name;
+            toggled?.Invoke(this, item.Id);
+            FocusInRow<ToggleButton>(item.Id, name);
         }
     }
 
@@ -266,13 +289,17 @@ public sealed partial class FlyoutWindow : Window, IDisposable
             .Any(container => container.ContentTemplateRoot is Panel row
                 && row.Children.OfType<ComboBox>().Any(list => list.IsDropDownOpen));
 
-    // A rebuild replaced the rows and with them the focused control; keyboard users stay in place
-    private void FocusInRow<T>(Guid deviceId) where T : Control
+    // A rebuild replaced the rows and with them the focused control; keyboard users stay in place.
+    // The toggle buttons sit in a panel of their own inside the row, and only their name tells them apart
+    private void FocusInRow<T>(Guid deviceId, string? name = null) where T : Control
     {
         var index = DeviceList.Items.Cast<DeviceItem>().ToList().FindIndex(d => d.Id == deviceId);
         DeviceList.UpdateLayout();
         if (DeviceList.ContainerFromIndex(index) is ListViewItem { ContentTemplateRoot: Panel row }
-            && row.Children.OfType<T>().FirstOrDefault() is { } control)
+            && row.Children
+                .SelectMany<UIElement, UIElement>(child => child is Panel inner ? inner.Children : [child])
+                .OfType<T>()
+                .FirstOrDefault(control => name is null || control.Name == name) is { } control)
         {
             control.Focus(FocusState.Programmatic);
         }

@@ -16,8 +16,8 @@
   <data name="ShowWidget" xml:space="preserve"><value>Widget auf dem Desktop</value></data>
   <data name="WidgetScale" xml:space="preserve"><value>Widget-Größe</value></data>
   <data name="LockWidget" xml:space="preserve"><value>Widget-Position fixieren</value></data>
-  <data name="Pin" xml:space="preserve"><value>In der Taskleiste anzeigen</value></data>
-  <data name="Unpin" xml:space="preserve"><value>Aus der Taskleiste entfernen</value></data>
+  <data name="ShowInTaskbar" xml:space="preserve"><value>In der Taskleiste anzeigen</value></data>
+  <data name="ShowOnWidget" xml:space="preserve"><value>Im Widget anzeigen</value></data>
   <data name="LowThresholdOff" xml:space="preserve"><value>Aus</value></data>
   <data name="LowThreshold" xml:space="preserve"><value>Warnen bei</value></data>
   <data name="LowThresholdToolTip" xml:space="preserve"><value>Bei diesem Akkustand oder weniger warnen</value></data>
