@@ -88,12 +88,13 @@ public partial class App : Application
 
         var title = Strings.Get("FlyoutHeader/Text");
         var menu = TrayMenu.Create(
-            title, () => _settings.LevelDisplay, display => Redraw(() => _settings.SetLevelDisplay(display)),
-            () => _settings.ShowWidget, show => ChangeShown(() => _settings.SetShowWidget(show)),
-            () => _settings.WidgetLevelDisplay, display => Redraw(() => _settings.SetWidgetLevelDisplay(display)),
-            () => _settings.WidgetShowNames, show => Redraw(() => _settings.SetWidgetShowNames(show)),
-            () => _settings.WidgetScale, scale => Redraw(() => _settings.SetWidgetScale(scale)),
-            () => _settings.WidgetLocked, locked => Save(() => _settings.SetWidgetLocked(locked)), Shutdown, Guard);
+            title, _settings,
+            display => Redraw(() => _settings.SetLevelDisplay(display)),
+            show => ChangeShown(() => _settings.SetShowWidget(show)),
+            display => Redraw(() => _settings.SetWidgetLevelDisplay(display)),
+            show => Redraw(() => _settings.SetWidgetShowNames(show)),
+            scale => Redraw(() => _settings.SetWidgetScale(scale)),
+            locked => Save(() => _settings.SetWidgetLocked(locked)), Shutdown, Guard);
 
         _trayIcon = new TaskbarIcon
         {
