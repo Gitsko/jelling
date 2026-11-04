@@ -40,6 +40,7 @@ The screenshots show the German interface; on an English Windows the app is in E
 - "Widget on the desktop" in the right-click menu turns the widget on: a small plate on the desktop. While it is on, each device in the flyout gets a second button ("Show on the widget"), so the widget can show other devices than the taskbar. After an update from an older version, it starts with the devices that were pinned to the taskbar. The plate is nearly opaque, so the devices stay readable on any wallpaper, and it follows the Windows app mode (light or dark). It stays behind your windows and shows when you press Win+D
 - Drag it where you want it. It keeps that place after a restart and moves back onto a screen if its monitor is gone. Right-clicking it opens the menu
 - "Battery level on the widget" offers the same choices for the widget alone, so it can show rings while the taskbar shows numbers. After an update it starts with the taskbar's choice
+- "Show names on the widget" writes each device's name below it in smaller text. Long names are cut off, so the widget stays compact
 - "Widget size" in the same menu makes it up to four times its normal size
 - "Lock widget position" stops it from moving. Clicking it opens the flyout
 - With no device on the widget connected, the widget is hidden

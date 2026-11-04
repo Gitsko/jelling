@@ -378,6 +378,37 @@ public sealed class DeviceSettingsTests : IDisposable
     }
 
     [Fact]
+    public void WidgetShowsNoNamesByDefault()
+    {
+        Assert.False(new DeviceSettings(SettingsPath).WidgetShowNames);
+    }
+
+    [Fact]
+    public void WidgetNamesSurviveReload()
+    {
+        new DeviceSettings(SettingsPath).SetWidgetShowNames(true);
+
+        Assert.True(new DeviceSettings(SettingsPath).WidgetShowNames);
+    }
+
+    [Fact]
+    public void FileLockedAtStartIsReadBeforeTurningOnTheWidgetNames()
+    {
+        new DeviceSettings(SettingsPath).ToggleWidget(Headset);
+        DeviceSettings settings;
+        using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            settings = new DeviceSettings(SettingsPath);
+        }
+
+        settings.SetWidgetShowNames(true);
+
+        var reloaded = new DeviceSettings(SettingsPath);
+        Assert.True(reloaded.IsOnWidget(Headset));
+        Assert.True(reloaded.WidgetShowNames);
+    }
+
+    [Fact]
     public void IgnoresStoredThresholdsThatAreNotOffered()
     {
         Directory.CreateDirectory(_folder);

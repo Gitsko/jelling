@@ -39,6 +39,15 @@ public static class TaskbarStripRenderer
     private const float PlateShadowEpx = 2;
     private const int PlateShadowAlpha = 0x30;
 
+    // Names sit below the badges in smaller, quieter text. A long name is cut off with an ellipsis, so one device
+    // cannot stretch the whole widget; its column is as wide as the badge or the capped name, whichever is wider
+    private const float NameSizeEpx = 11;
+    private const float NameRowEpx = 12;
+    private const float NameTopEpx = 39;
+    private const float NameHeightEpx = 15;
+    private const float NameMaxWidthEpx = 68;
+    private const int NameAlpha = 0xB0;
+
     // About 6 % white on a dark taskbar, 4 % black on a light one: black shows more, so it gets less
     private const int FillAlphaOnDark = 0x10;
     private const int FillAlphaOnLight = 0x0A;
@@ -53,6 +62,7 @@ public static class TaskbarStripRenderer
     private static readonly Color Background = Color.FromArgb(1, 0, 0, 0);
 
     /// <param name="colors">The taskbar's device colors; the surface takes the normal one.</param>
+    /// <param name="height">The height of the row of badges; names add a row below it.</param>
     /// <param name="plate">Draws the devices on this plate instead of the taskbar's faint surface.</param>
     /// <returns>The strip and, in the order of <paramref name="badges"/>, the part of it each badge covers.</returns>
     public static (Bitmap Image, IReadOnlyList<Rectangle> BadgeBounds) Render(
@@ -61,14 +71,23 @@ public static class TaskbarStripRenderer
         using var glyphFont = new Font(DeviceText.GlyphFont, (float)(GlyphSizeEpx * scale), GraphicsUnit.Pixel);
         using var ringGlyphFont = new Font(DeviceText.GlyphFont, (float)(RingGlyphSizeEpx * scale), GraphicsUnit.Pixel);
         using var textFont = new Font(DeviceText.TextFont, (float)(TextSizeEpx * scale), FontStyle.Regular, GraphicsUnit.Pixel);
+        using var nameFont = new Font(DeviceText.TextFont, (float)(NameSizeEpx * scale), FontStyle.Regular, GraphicsUnit.Pixel);
         using var format = new StringFormat(StringFormat.GenericTypographic) { LineAlignment = StringAlignment.Center };
         format.FormatFlags |= StringFormatFlags.NoWrap;
+        using var nameFormat = new StringFormat(format)
+        {
+            Alignment = StringAlignment.Center,
+            Trimming = StringTrimming.EllipsisCharacter,
+        };
         var padding = (float)(PaddingEpx * scale);
         var gap = (float)(GapEpx * scale);
         var ringSize = (float)(RingSizeEpx * scale);
+        var showNames = plate is not null && badges.Any(badge => !string.IsNullOrEmpty(badge.Name));
+        var fullHeight = showNames ? height + (int)Math.Round(NameRowEpx * scale) : height;
 
         // Measured and placed in one pass, so the strip's width cannot drift from what is drawn
-        var layout = new List<(DeviceBadge Badge, string? Text, RectangleF Glyph, RectangleF Level, RectangleF Ring, Rectangle Bounds)>();
+        var layout = new List<(DeviceBadge Badge, string? Text, RectangleF Glyph, RectangleF Level, RectangleF Ring,
+            RectangleF Name, Rectangle Bounds)>();
         var margin = plate is null ? 0 : (float)(PlateMarginEpx * scale);
         var x = margin;
         using (var probe = new Bitmap(1, 1))
@@ -106,13 +125,31 @@ public static class TaskbarStripRenderer
                 }
 
                 x += padding;
-                var bounds = Rectangle.FromLTRB((int)MathF.Round(start), 0, (int)MathF.Round(x), height);
-                layout.Add((badge, text, glyph, level, ring, bounds));
+
+                // A name wider than the badge widens its column; the badge then sits in the column's middle
+                var name = RectangleF.Empty;
+                if (showNames && !string.IsNullOrEmpty(badge.Name))
+                {
+                    var nameWidth = MathF.Min(
+                        measure.MeasureString(badge.Name, nameFont, PointF.Empty, nameFormat).Width + 1,
+                        (float)(NameMaxWidthEpx * scale));
+                    var nameColumn = MathF.Max(x - start, nameWidth + 2 * gap);
+                    var shift = (nameColumn - (x - start)) / 2;
+                    glyph.Offset(shift, 0);
+                    level.Offset(shift, 0);
+                    ring.Offset(shift, 0);
+                    x = start + nameColumn;
+                    name = new RectangleF(
+                        start + (nameColumn - nameWidth) / 2, (float)(NameTopEpx * scale), nameWidth, (float)(NameHeightEpx * scale));
+                }
+
+                var bounds = Rectangle.FromLTRB((int)MathF.Round(start), 0, (int)MathF.Round(x), fullHeight);
+                layout.Add((badge, text, glyph, level, ring, name, bounds));
             }
         }
 
         x += margin;
-        var bitmap = new Bitmap(Math.Max(1, (int)MathF.Ceiling(x)), height);
+        var bitmap = new Bitmap(Math.Max(1, (int)MathF.Ceiling(x)), fullHeight);
         using var graphics = Graphics.FromImage(bitmap);
         graphics.Clear(Background);
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
@@ -120,7 +157,7 @@ public static class TaskbarStripRenderer
 
         if (layout.Count > 0 && plate is not null)
         {
-            DrawPlate(graphics, bitmap.Width, height, scale, plate);
+            DrawPlate(graphics, bitmap.Width, fullHeight, scale, plate);
         }
 
         // High contrast has no translucent fills, so the surface stays out of it
@@ -129,7 +166,7 @@ public static class TaskbarStripRenderer
             DrawSurface(graphics, bitmap.Width, height, scale, colors.Normal);
         }
 
-        foreach (var (badge, text, glyph, level, ring, _) in layout)
+        foreach (var (badge, text, glyph, level, ring, name, _) in layout)
         {
             using var glyphBrush = new SolidBrush(badge.GlyphColor);
             if (badge.RingPercent is { } fill)
@@ -146,6 +183,13 @@ public static class TaskbarStripRenderer
             {
                 using var textBrush = new SolidBrush(badge.LevelColor);
                 graphics.DrawString(text, textFont, textBrush, level, format);
+            }
+
+            // High contrast has no translucent colors; the smaller size alone sets the name apart there
+            if (!name.IsEmpty)
+            {
+                using var nameBrush = new SolidBrush(colors.IsHighContrast ? colors.Normal : Color.FromArgb(NameAlpha, colors.Normal));
+                graphics.DrawString(badge.Name, nameFont, nameBrush, name, nameFormat);
             }
         }
 

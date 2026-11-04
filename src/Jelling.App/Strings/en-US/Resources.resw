@@ -15,6 +15,7 @@
   <data name="LevelDisplayRing" xml:space="preserve"><value>Ring around the icon</value></data>
   <data name="LevelDisplaySymbol" xml:space="preserve"><value>Symbol only</value></data>
   <data name="ShowWidget" xml:space="preserve"><value>Widget on the desktop</value></data>
+  <data name="WidgetShowNames" xml:space="preserve"><value>Show names on the widget</value></data>
   <data name="WidgetScale" xml:space="preserve"><value>Widget size</value></data>
   <data name="LockWidget" xml:space="preserve"><value>Lock widget position</value></data>
   <data name="ShowInTaskbar" xml:space="preserve"><value>Show in taskbar</value></data>
