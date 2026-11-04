@@ -15,6 +15,11 @@ public static class TrayIconRenderer
     private const float GlyphHeight = 18;
     private const float RingWidth = 2.5f;
 
+    // A device's level ring, in the taskbar element's proportions: heavy around a small glyph. Whole pixels keep the
+    // ring sharp at tray size, and the glyph keeps clear of it
+    private const float DeviceRingWidthRatio = 3.5f / 26;
+    private const float DeviceRingGapRatio = 1f / 8;
+
     // The font's strokes are hairlines at tray size; tracing the outline thickens them
     private const float GlyphBoldWidth = 1.5f;
 
@@ -58,11 +63,17 @@ public static class TrayIconRenderer
             using var glyphBrush = new SolidBrush(color);
             if (ringPercent is { } fill)
             {
-                // Same proportions as the app's own tray icon: the ring at the edge, the glyph inside it
-                TaskbarStripRenderer.DrawRing(graphics, new RectangleF(0, 0, size, size), MathF.Max(1, size * RingWidth / Size), fill, levelColor, track);
-                using var inner = Outline(glyph, DeviceText.GlyphFont, FontStyle.Regular, size * GlyphHeight / Size, size * GlyphHeight / Size);
+                var ringWidth = MathF.Max(2, MathF.Round(size * DeviceRingWidthRatio));
+                var glyphSize = size - 2 * (ringWidth + MathF.Max(2, MathF.Round(size * DeviceRingGapRatio)));
+                TaskbarStripRenderer.DrawRing(graphics, new RectangleF(0, 0, size, size), ringWidth, fill, levelColor, track);
+                using var inner = Outline(glyph, DeviceText.GlyphFont, FontStyle.Regular, glyphSize, glyphSize);
                 Place(inner, size, size, top: 0);
                 graphics.FillPath(glyphBrush, inner);
+
+                // At this size the font's hairlines nearly vanish, on a dark taskbar most of all. A full outline would
+                // close the small glyph's gaps, and GDI+ draws no pen thinner than a pixel, so it goes on half opaque
+                using var bold = new Pen(Color.FromArgb(0x80, color), 1) { LineJoin = LineJoin.Round };
+                graphics.DrawPath(bold, inner);
                 return;
             }
 

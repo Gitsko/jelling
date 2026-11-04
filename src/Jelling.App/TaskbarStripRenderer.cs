@@ -16,12 +16,14 @@ public static class TaskbarStripRenderer
     private const float PaddingEpx = 8;
     private const float GapEpx = 5;
 
-    // Leaves the glyph room inside and the strip's surface room around it
+    // Leaves the strip's surface room around the ring. A heavy ring around a small glyph, like a progress ring,
+    // makes the level the first thing to read
     private const float RingSizeEpx = 26;
-    private const float RingWidthEpx = 2.5f;
+    private const float RingWidthEpx = 3.5f;
+    private const float RingGlyphSizeEpx = 9;
 
     // The empty part of the ring, faint enough that the filled part reads as the level
-    private const int RingTrackAlpha = 0x40;
+    private const int RingTrackAlpha = 0x30;
 
     // The surface matches the app buttons' hover highlight: 4 epx from top and bottom, Windows 11's corner radius.
     // The side inset keeps it off the strip's edges, so it does not touch an app button's highlight next to it
@@ -48,6 +50,7 @@ public static class TaskbarStripRenderer
         IReadOnlyList<DeviceBadge> badges, DeviceColors colors, int height, double scale)
     {
         using var glyphFont = new Font(DeviceText.GlyphFont, (float)(GlyphSizeEpx * scale), GraphicsUnit.Pixel);
+        using var ringGlyphFont = new Font(DeviceText.GlyphFont, (float)(RingGlyphSizeEpx * scale), GraphicsUnit.Pixel);
         using var textFont = new Font(DeviceText.TextFont, (float)(TextSizeEpx * scale), FontStyle.Regular, GraphicsUnit.Pixel);
         using var format = new StringFormat(StringFormat.GenericTypographic) { LineAlignment = StringAlignment.Center };
         format.FormatFlags |= StringFormatFlags.NoWrap;
@@ -66,7 +69,7 @@ public static class TaskbarStripRenderer
             {
                 var start = x;
                 x += padding;
-                var glyphWidth = measure.MeasureString(badge.Glyph, glyphFont, PointF.Empty, format).Width;
+                var glyphWidth = measure.MeasureString(badge.Glyph, GlyphFont(badge), PointF.Empty, format).Width;
 
                 // The ring is wider than the glyph; the glyph sits in its middle
                 var ring = RectangleF.Empty;
@@ -112,13 +115,17 @@ public static class TaskbarStripRenderer
 
         foreach (var (badge, text, glyph, level, ring, _) in layout)
         {
+            using var glyphBrush = new SolidBrush(badge.GlyphColor);
             if (badge.RingPercent is { } fill)
             {
                 DrawRing(graphics, ring, (float)(RingWidthEpx * scale), fill, badge.LevelColor, badge.RingTrack);
+                FillCentered(graphics, badge.Glyph, ringGlyphFont, glyphBrush, ring);
+            }
+            else
+            {
+                graphics.DrawString(badge.Glyph, glyphFont, glyphBrush, glyph, format);
             }
 
-            using var glyphBrush = new SolidBrush(badge.GlyphColor);
-            graphics.DrawString(badge.Glyph, glyphFont, glyphBrush, glyph, format);
             if (text is not null)
             {
                 using var textBrush = new SolidBrush(badge.LevelColor);
@@ -127,6 +134,21 @@ public static class TaskbarStripRenderer
         }
 
         return (bitmap, layout.Select(item => item.Bounds).ToList());
+
+        Font GlyphFont(DeviceBadge badge) => badge.RingPercent is null ? glyphFont : ringGlyphFont;
+    }
+
+    // DrawString places a glyph by its advance and the font's line box, a pixel or so off its ink's middle. Inside a
+    // ring that shows, so the outline's own bounds go on the ring's center
+    private static void FillCentered(Graphics graphics, string glyph, Font font, Brush brush, RectangleF ring)
+    {
+        using var path = new GraphicsPath();
+        path.AddString(glyph, font.FontFamily, (int)font.Style, font.Size, PointF.Empty, StringFormat.GenericTypographic);
+        var ink = path.GetBounds();
+        using var move = new Matrix();
+        move.Translate(ring.X + (ring.Width - ink.Width) / 2 - ink.X, ring.Y + (ring.Height - ink.Height) / 2 - ink.Y);
+        path.Transform(move);
+        graphics.FillPath(brush, path);
     }
 
     /// <summary>A ring filled clockwise from the top in proportion to the level, on a faint full ring.</summary>
@@ -154,6 +176,9 @@ public static class TaskbarStripRenderer
             return;
         }
 
+        // Round ends like a progress ring; the track keeps flat ones, it has none
+        pen.StartCap = LineCap.Round;
+        pen.EndCap = LineCap.Round;
         graphics.DrawArc(pen, path, -90, 360f * percent / 100);
     }
 

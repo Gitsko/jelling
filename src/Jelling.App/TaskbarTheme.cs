@@ -23,12 +23,12 @@ internal sealed record TaskbarTheme(Color? Tray, DeviceColors Devices)
             return new TaskbarTheme(text, new DeviceColors(text, text, text));
         }
 
-        // Dark blue loses its contrast on a dark taskbar, so that one gets a light blue. Device icons look like
-        // the system's own tray icons: black or white, no brand color. Low levels take the Windows critical
-        // colors: dark red on a light taskbar, light red on a dark one, where dark red would be too faint for
-        // small digits. The level ring takes the app's blue
+        // Device icons look like the system's own tray icons: black or white, no brand color. Low levels take
+        // the Windows critical colors: dark red on a light taskbar, light red on a dark one, where dark red would
+        // be too faint for small digits. The level ring takes Bluetooth Blue, like the app icon; its middle
+        // lightness reads on both taskbars
         var light = TaskbarIsLight();
-        var blue = light ? Color.FromArgb(0x00, 0x3A, 0x8C) : Color.FromArgb(0x6C, 0xB4, 0xFF);
+        var blue = Color.FromArgb(0x00, 0x82, 0xFC);
         return light
             ? new TaskbarTheme(null, new DeviceColors(Color.Black, Color.FromArgb(0xC4, 0x2B, 0x1C), blue))
             : new TaskbarTheme(null, new DeviceColors(Color.White, Color.FromArgb(0xFF, 0x99, 0xA4), blue));
