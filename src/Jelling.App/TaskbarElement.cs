@@ -21,6 +21,7 @@ public sealed partial class TaskbarElement : IDisposable
     private const string ClassName = "JellingTaskbarElement";
 
     private readonly Action _onClick;
+    private readonly Action _onRightClick;
     private readonly DispatcherQueueTimer _timer;
     private readonly TaskButtonsMonitor _taskButtons = new();
     private readonly uint _shellHookMessage = RegisterWindowMessage("SHELLHOOK");
@@ -56,9 +57,11 @@ public sealed partial class TaskbarElement : IDisposable
     /// </summary>
     public event EventHandler? AvailabilityChanged;
 
-    public TaskbarElement(Action onClick)
+    /// <param name="onRightClick">Opens the app's menu at the cursor.</param>
+    public TaskbarElement(Action onClick, Action onRightClick)
     {
         _onClick = onClick;
+        _onRightClick = onRightClick;
         _wndProc = OnMessage;
 
         var windowClass = new WndClassEx
@@ -430,9 +433,15 @@ public sealed partial class TaskbarElement : IDisposable
                 return IntPtr.Zero;
 
             // DefWindowProc would turn a right click into WM_CONTEXTMENU and send it to the parent, Explorer's
-            // taskbar, across processes. Like the device tray icons, the element has no menu of its own
-            case WmRButtonDown:
+            // taskbar, across processes. Like the device tray icons, the element opens the app's menu instead
             case WmRButtonUp:
+                if (IsOnStrip(lParam))
+                {
+                    Run(_onRightClick);
+                }
+
+                return IntPtr.Zero;
+            case WmRButtonDown:
             case WmContextMenu:
                 return IntPtr.Zero;
 
@@ -482,11 +491,13 @@ public sealed partial class TaskbarElement : IDisposable
         return _strip is not null && x >= 0 && y >= 0 && x < _strip.Width && y < _strip.Height;
     }
 
-    private void Click()
+    private void Click() => Run(_onClick);
+
+    private static void Run(Action action)
     {
         try
         {
-            _onClick();
+            action();
         }
         catch (Exception exception)
         {
