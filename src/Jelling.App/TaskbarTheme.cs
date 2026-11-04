@@ -35,11 +35,11 @@ internal sealed record TaskbarTheme(Color? Tray, DeviceColors Devices, DeviceCol
         var devices = ForLightness(IsLight("SystemUsesLightTheme"));
         var appsLight = IsLight("AppsUseLightTheme");
 
-        // The flyouts' solid fallback colors, nearly opaque: a busy photo still shows faintly, but never
-        // through the glyphs. The edge keeps a light plate off a light wallpaper
+        // The flyouts' solid fallback colors at 85 %: the wallpaper shows through, yet the glyphs, rings
+        // and names stay readable on a busy photo. The edge keeps a light plate off a light wallpaper
         var plate = appsLight
-            ? new WidgetPlate(Color.FromArgb(0xF2, 0xF9, 0xF9, 0xF9), Color.FromArgb(0x1A, 0, 0, 0), Shadow: true)
-            : new WidgetPlate(Color.FromArgb(0xF2, 0x2C, 0x2C, 0x2C), Color.FromArgb(0x1F, 0xFF, 0xFF, 0xFF), Shadow: true);
+            ? new WidgetPlate(Color.FromArgb(0xD9, 0xF9, 0xF9, 0xF9), Color.FromArgb(0x1A, 0, 0, 0), Shadow: true)
+            : new WidgetPlate(Color.FromArgb(0xD9, 0x2C, 0x2C, 0x2C), Color.FromArgb(0x1F, 0xFF, 0xFF, 0xFF), Shadow: true);
         return new TaskbarTheme(null, devices, ForLightness(appsLight), plate);
     }
 
