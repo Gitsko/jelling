@@ -1,3 +1,5 @@
+<img src="src/Jelling.App/Assets/AppIcon.png" alt="" width="80">
+
 # Jelling Battery Monitor
 
 Battery levels of your Bluetooth devices, one click away in the Windows 11 taskbar.
