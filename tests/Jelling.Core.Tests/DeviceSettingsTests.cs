@@ -581,6 +581,19 @@ public sealed class DeviceSettingsTests : IDisposable
     }
 
     [Fact]
+    public void FieldsFromANewerVersionSurviveASave()
+    {
+        Directory.CreateDirectory(_folder);
+        File.WriteAllText(SettingsPath, """{"PinnedDevices":[],"FutureField":{"Kept":1}}""");
+
+        new DeviceSettings(SettingsPath).SetPinned(Headset, true);
+
+        var saved = File.ReadAllText(SettingsPath);
+        Assert.Contains("\"FutureField\":{\"Kept\":1}", saved);
+        Assert.True(new DeviceSettings(SettingsPath).IsPinned(Headset));
+    }
+
+    [Fact]
     public void CorruptFileThatCannotBeKeptAsideReadsAsDefaults()
     {
         Directory.CreateDirectory(_folder);

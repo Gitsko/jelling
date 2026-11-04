@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Jelling.Core;
 
@@ -8,9 +9,10 @@ namespace Jelling.Core;
 /// how large and with or without names the desktop widget shows. Stored as JSON; a missing file means
 /// nothing pinned, nothing on the widget, default thresholds, numbers shown and no widget. A file from
 /// before the widget had its own choices puts the pinned devices on it and shows the level there as in
-/// the taskbar. One that is no valid JSON is kept aside as settings.invalid.json rather than overwritten.
-/// One that exists but cannot be read (locked, no access) reads as defaults too, but is never
-/// overwritten: each change reads it again first, and saving throws
+/// the taskbar. Fields this version does not know, written by a newer one, are kept when it saves. One
+/// that is no valid JSON is kept aside as settings.invalid.json rather than overwritten. One that exists
+/// but cannot be read (locked, no access) reads as defaults too, but is never overwritten: each change
+/// reads it again first, and saving throws
 /// while it still cannot be read. Changes made meanwhile still apply, and once it reads they are applied
 /// again on top of what it holds.
 /// </summary>
@@ -20,6 +22,9 @@ public sealed class DeviceSettings
     private readonly HashSet<Guid> _pinned = [];
     private readonly HashSet<Guid> _widget = [];
     private readonly Dictionary<Guid, int> _lowThresholds = [];
+
+    // What a newer version stored and this one does not know; written back as read
+    private Dictionary<string, JsonElement>? _unknown;
 
     // The file holds settings this instance never saw; writing the defaults over them would lose them
     private bool _readFailed;
@@ -158,6 +163,7 @@ public sealed class DeviceSettings
             return;
         }
 
+        _unknown = stored?.Unknown;
         _pinned.Clear();
         _pinned.UnionWith(stored?.PinnedDevices ?? []);
 
@@ -201,7 +207,10 @@ public sealed class DeviceSettings
             JsonSerializer.Serialize(stream, new Stored(
                 [.. _pinned], _lowThresholds, LevelDisplay == LevelDisplay.Number, ShowWidget, WidgetLocked, WidgetPosition,
                 LevelDisplay.ToString(), WidgetScale, [.. _widget], WidgetLevelDisplay.ToString(),
-                WidgetShowNames));
+                WidgetShowNames)
+            {
+                Unknown = _unknown,
+            });
             stream.Flush(flushToDisk: true);
         }
 
@@ -253,5 +262,10 @@ public sealed class DeviceSettings
     private sealed record Stored(
         Guid[]? PinnedDevices, Dictionary<Guid, int>? LowThresholds, bool? ShowPercent,
         bool? ShowWidget, bool? WidgetLocked, PixelPoint? WidgetPosition, string? LevelDisplay, int? WidgetScale,
-        Guid[]? WidgetDevices, string? WidgetLevelDisplay, bool? WidgetShowNames);
+        Guid[]? WidgetDevices, string? WidgetLevelDisplay, bool? WidgetShowNames)
+    {
+        // A newer version's fields; the serializer does not bind extension data to a constructor parameter
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement>? Unknown { get; init; }
+    }
 }
