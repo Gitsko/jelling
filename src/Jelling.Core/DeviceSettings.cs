@@ -74,11 +74,6 @@ public sealed class DeviceSettings
     /// <param name="onWidget">What the user chose, like <see cref="SetPinned"/>.</param>
     public void SetOnWidget(Guid deviceId, bool onWidget) => Apply(() => Set(_widget, deviceId, onWidget));
 
-    // The opposite of what the user sees now, read before a reload that could change it
-    public void TogglePin(Guid deviceId) => SetPinned(deviceId, !IsPinned(deviceId));
-
-    public void ToggleWidget(Guid deviceId) => SetOnWidget(deviceId, !IsOnWidget(deviceId));
-
     /// <param name="threshold">One of <see cref="BatteryLevel.LowThresholds"/>.</param>
     public void SetLowThreshold(Guid deviceId, int threshold)
     {
