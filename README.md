@@ -92,16 +92,6 @@ When reporting a problem, attaching `crash.log` helps. Paths under your user fol
 
 Jelling reads the battery levels from Windows and keeps everything on your PC. The only network access is the update check: a minute after start and then once a day it asks the GitHub API (`api.github.com/repos/Gitsko/jelling/releases/latest`) for the newest version number. The request carries the app version in its User-Agent and nothing about your devices.
 
-## Code signing policy
-
-Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/). Releases up to and including v1.3.0 are not signed.
-
-Only files built by this repository's release workflow from a tagged commit get signed, and each signing request is approved by hand.
-
-- Author, reviewer and approver: [Sebastian Koschel](https://github.com/Gitsko)
-
-Privacy: see [Privacy](#privacy). Jelling sends nothing to other networked systems apart from the update check described there.
-
 ## Build from source
 
 Needs the .NET 10 SDK on Windows.
