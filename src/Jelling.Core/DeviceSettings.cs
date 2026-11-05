@@ -205,9 +205,17 @@ public sealed class DeviceSettings
         {
             // ShowPercent keeps an older version, after a downgrade, as close as it gets to the chosen display
             JsonSerializer.Serialize(stream, new Stored(
-                [.. _pinned], _lowThresholds, LevelDisplay == LevelDisplay.Number, ShowWidget, WidgetLocked, WidgetPosition,
-                LevelDisplay.ToString(), WidgetScale, [.. _widget], WidgetLevelDisplay.ToString(),
-                WidgetShowNames)
+                PinnedDevices: [.. _pinned],
+                LowThresholds: _lowThresholds,
+                ShowPercent: LevelDisplay == LevelDisplay.Number,
+                ShowWidget: ShowWidget,
+                WidgetLocked: WidgetLocked,
+                WidgetPosition: WidgetPosition,
+                LevelDisplay: LevelDisplay.ToString(),
+                WidgetScale: WidgetScale,
+                WidgetDevices: [.. _widget],
+                WidgetLevelDisplay: WidgetLevelDisplay.ToString(),
+                WidgetShowNames: WidgetShowNames)
             {
                 Unknown = _unknown,
             });
