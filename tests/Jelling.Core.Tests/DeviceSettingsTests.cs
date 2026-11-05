@@ -25,7 +25,7 @@ public sealed class DeviceSettingsTests : IDisposable
     [Fact]
     public void ToggleSurvivesReload()
     {
-        new DeviceSettings(SettingsPath).TogglePin(Headset);
+        new DeviceSettings(SettingsPath).SetPinned(Headset, true);
 
         var reloaded = new DeviceSettings(SettingsPath);
 
@@ -34,11 +34,11 @@ public sealed class DeviceSettingsTests : IDisposable
     }
 
     [Fact]
-    public void SecondToggleUnpins()
+    public void UnpinSurvivesReload()
     {
         var settings = new DeviceSettings(SettingsPath);
-        settings.TogglePin(Headset);
-        settings.TogglePin(Headset);
+        settings.SetPinned(Headset, true);
+        settings.SetPinned(Headset, false);
 
         Assert.False(new DeviceSettings(SettingsPath).IsPinned(Headset));
     }
@@ -58,7 +58,7 @@ public sealed class DeviceSettingsTests : IDisposable
         Directory.CreateDirectory(_folder);
         File.WriteAllText(SettingsPath, "{ not json");
 
-        new DeviceSettings(SettingsPath).TogglePin(Headset);
+        new DeviceSettings(SettingsPath).SetPinned(Headset, true);
 
         Assert.Equal("{ not json", File.ReadAllText(Path.Combine(_folder, "settings.invalid.json")));
         Assert.True(new DeviceSettings(SettingsPath).IsPinned(Headset));
@@ -75,7 +75,7 @@ public sealed class DeviceSettingsTests : IDisposable
     {
         var settings = new DeviceSettings(SettingsPath);
         settings.SetLowThreshold(Headset, 40);
-        settings.TogglePin(Mouse);
+        settings.SetPinned(Mouse, true);
 
         var reloaded = new DeviceSettings(SettingsPath);
 
@@ -122,7 +122,7 @@ public sealed class DeviceSettingsTests : IDisposable
     {
         var settings = new DeviceSettings(SettingsPath);
         settings.SetLevelDisplay(LevelDisplay.Symbol);
-        settings.TogglePin(Headset);
+        settings.SetPinned(Headset, true);
 
         var reloaded = new DeviceSettings(SettingsPath);
 
@@ -237,7 +237,7 @@ public sealed class DeviceSettingsTests : IDisposable
     [Fact]
     public void WidgetToggleSurvivesReloadWithoutPinning()
     {
-        new DeviceSettings(SettingsPath).ToggleWidget(Headset);
+        new DeviceSettings(SettingsPath).SetOnWidget(Headset, true);
 
         var reloaded = new DeviceSettings(SettingsPath);
 
@@ -247,11 +247,11 @@ public sealed class DeviceSettingsTests : IDisposable
     }
 
     [Fact]
-    public void SecondWidgetToggleTakesTheDeviceOff()
+    public void TakingTheDeviceOffTheWidgetSurvivesReload()
     {
         var settings = new DeviceSettings(SettingsPath);
-        settings.ToggleWidget(Headset);
-        settings.ToggleWidget(Headset);
+        settings.SetOnWidget(Headset, true);
+        settings.SetOnWidget(Headset, false);
 
         Assert.False(new DeviceSettings(SettingsPath).IsOnWidget(Headset));
     }
@@ -259,7 +259,7 @@ public sealed class DeviceSettingsTests : IDisposable
     [Fact]
     public void PinningLeavesTheWidgetAlone()
     {
-        new DeviceSettings(SettingsPath).TogglePin(Headset);
+        new DeviceSettings(SettingsPath).SetPinned(Headset, true);
 
         var reloaded = new DeviceSettings(SettingsPath);
 
@@ -292,14 +292,14 @@ public sealed class DeviceSettingsTests : IDisposable
     [Fact]
     public void FileLockedAtStartIsReadBeforeTheFirstWidgetToggle()
     {
-        new DeviceSettings(SettingsPath).ToggleWidget(Headset);
+        new DeviceSettings(SettingsPath).SetOnWidget(Headset, true);
         DeviceSettings settings;
         using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
         {
             settings = new DeviceSettings(SettingsPath);
         }
 
-        settings.ToggleWidget(Mouse);
+        settings.SetOnWidget(Mouse, true);
 
         var reloaded = new DeviceSettings(SettingsPath);
         Assert.True(reloaded.IsOnWidget(Headset));
@@ -309,13 +309,13 @@ public sealed class DeviceSettingsTests : IDisposable
     [Fact]
     public void WidgetToggleWhileLockedKeepsWhatTheUserSawAfterTheReload()
     {
-        new DeviceSettings(SettingsPath).ToggleWidget(Headset);
+        new DeviceSettings(SettingsPath).SetOnWidget(Headset, true);
         DeviceSettings settings;
         using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
         {
             // Read as defaults, so Headset looks off the widget and the toggle puts it on
             settings = new DeviceSettings(SettingsPath);
-            Assert.Throws<IOException>(() => settings.ToggleWidget(Headset));
+            Assert.Throws<IOException>(() => settings.SetOnWidget(Headset, !settings.IsOnWidget(Headset)));
         }
 
         settings.SetLevelDisplay(LevelDisplay.Symbol);
@@ -394,7 +394,7 @@ public sealed class DeviceSettingsTests : IDisposable
     [Fact]
     public void FileLockedAtStartIsReadBeforeTurningOnTheWidgetNames()
     {
-        new DeviceSettings(SettingsPath).ToggleWidget(Headset);
+        new DeviceSettings(SettingsPath).SetOnWidget(Headset, true);
         DeviceSettings settings;
         using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
         {
@@ -423,14 +423,14 @@ public sealed class DeviceSettingsTests : IDisposable
     [Fact]
     public void LockedFileReadsAsDefaultsButIsNotOverwritten()
     {
-        new DeviceSettings(SettingsPath).TogglePin(Headset);
+        new DeviceSettings(SettingsPath).SetPinned(Headset, true);
 
         using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
         {
             var settings = new DeviceSettings(SettingsPath);
 
             Assert.False(settings.IsPinned(Headset));
-            Assert.Throws<IOException>(() => settings.TogglePin(Mouse));
+            Assert.Throws<IOException>(() => settings.SetPinned(Mouse, true));
         }
 
         var reloaded = new DeviceSettings(SettingsPath);
@@ -441,14 +441,14 @@ public sealed class DeviceSettingsTests : IDisposable
     [Fact]
     public void FileLockedAtStartIsReadBeforeTheFirstSave()
     {
-        new DeviceSettings(SettingsPath).TogglePin(Headset);
+        new DeviceSettings(SettingsPath).SetPinned(Headset, true);
         DeviceSettings settings;
         using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
         {
             settings = new DeviceSettings(SettingsPath);
         }
 
-        settings.TogglePin(Mouse);
+        settings.SetPinned(Mouse, true);
 
         var reloaded = new DeviceSettings(SettingsPath);
         Assert.True(reloaded.IsPinned(Headset));
@@ -458,7 +458,7 @@ public sealed class DeviceSettingsTests : IDisposable
     [Fact]
     public void FileLockedAtStartIsReadBeforeSettingAThreshold()
     {
-        new DeviceSettings(SettingsPath).TogglePin(Headset);
+        new DeviceSettings(SettingsPath).SetPinned(Headset, true);
         DeviceSettings settings;
         using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
         {
@@ -475,7 +475,7 @@ public sealed class DeviceSettingsTests : IDisposable
     [Fact]
     public void FileLockedAtStartIsReadBeforeChangingTheLevelDisplay()
     {
-        new DeviceSettings(SettingsPath).TogglePin(Headset);
+        new DeviceSettings(SettingsPath).SetPinned(Headset, true);
         DeviceSettings settings;
         using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
         {
@@ -492,12 +492,12 @@ public sealed class DeviceSettingsTests : IDisposable
     [Fact]
     public void ChangesWhileLockedSurviveTheReload()
     {
-        new DeviceSettings(SettingsPath).TogglePin(Headset);
+        new DeviceSettings(SettingsPath).SetPinned(Headset, true);
         DeviceSettings settings;
         using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
         {
             settings = new DeviceSettings(SettingsPath);
-            Assert.Throws<IOException>(() => settings.TogglePin(Mouse));
+            Assert.Throws<IOException>(() => settings.SetPinned(Mouse, true));
             Assert.Throws<IOException>(() => settings.SetLowThreshold(Mouse, 40));
         }
 
@@ -514,13 +514,13 @@ public sealed class DeviceSettingsTests : IDisposable
     [Fact]
     public void ToggleWhileLockedKeepsWhatTheUserSawAfterTheReload()
     {
-        new DeviceSettings(SettingsPath).TogglePin(Headset);
+        new DeviceSettings(SettingsPath).SetPinned(Headset, true);
         DeviceSettings settings;
         using (new FileStream(SettingsPath, FileMode.Open, FileAccess.Read, FileShare.None))
         {
             // Read as defaults, so Headset looks unpinned and the toggle pins it
             settings = new DeviceSettings(SettingsPath);
-            Assert.Throws<IOException>(() => settings.TogglePin(Headset));
+            Assert.Throws<IOException>(() => settings.SetPinned(Headset, !settings.IsPinned(Headset)));
         }
 
         settings.SetLevelDisplay(LevelDisplay.Symbol);
@@ -612,7 +612,7 @@ public sealed class DeviceSettingsTests : IDisposable
     [Fact]
     public void SaveLeavesNoFileBehind()
     {
-        new DeviceSettings(SettingsPath).TogglePin(Headset);
+        new DeviceSettings(SettingsPath).SetPinned(Headset, true);
 
         Assert.Equal([SettingsPath], Directory.GetFiles(_folder));
     }
@@ -624,7 +624,7 @@ public sealed class DeviceSettingsTests : IDisposable
         File.WriteAllText(SettingsPath, "null");
 
         var settings = new DeviceSettings(SettingsPath);
-        settings.TogglePin(Headset);
+        settings.SetPinned(Headset, true);
 
         Assert.True(new DeviceSettings(SettingsPath).IsPinned(Headset));
     }
