@@ -1,24 +1,16 @@
-# Draws the app icon (Bluetooth glyph in a ring filled to 75 %, like a charge level) as
-# Assets/AppIcon.ico, AppIcon.png and the MSIX logos.
+# Draws the app icon (the rune jera in a ring filled to 75 %, like a charge level) as Assets/AppIcon.ico, AppIcon.png
+# and the MSIX logos.
 # Run with Windows PowerShell after changing the look; the outputs are checked in.
 Add-Type -AssemblyName System.Drawing
 
 $assets = Join-Path $PSScriptRoot '..\src\Jelling.App\Assets'
-# Bluetooth Blue (Pantone 2925 C) for glyph and level, a tint of it for the empty quarter
+# Pantone 2925 C for the level, a tint of it for the empty quarter. The mark inside is not the Bluetooth logo, which
+# the Store rejects as imagery of trademarks of others, but jera, the J of the elder runes, for Jelling
 $blue = [Drawing.Color]::FromArgb(0x00, 0x82, 0xFC)
 $trackColor = [Drawing.Color]::FromArgb(0xCC, 0xE6, 0xFE)
-$glyph = [string][char]0xE702
-# The rune for the small sizes, set pixel by pixel: any scaled or anti-aliased stroke turns to mush there.
-# One-pixel lines, 45 degrees where there is room; 16 px has room only for a shorter one with a straight crossbar
-$small = @{
-    16 = '..#..', '..##.', '#.#.#', '.###.', '#.#.#', '..##.', '..#..'
-    20 = '..#..', '..##.', '#.#.#', '.###.', '..#..', '.###.', '#.#.#', '..##.', '..#..'
-    24 = '...#...', '...##..', '...#.#.', '#..#..#', '.#.#.#.', '..###..', '...#...', '..###..', '.#.#.#.', '#..#..#',
-         '...#.#.', '...##..', '...#...'
-}
 
-# Face, track and the blue three quarters. Inset and diameter are in pixels of the final icon
-function Draw-Ring([Drawing.Graphics] $graphics, [double] $ringWidth, [double] $inset, [double] $diameter) {
+# Face, track, the blue three quarters and the rune. Inset and diameter are in pixels of the final icon
+function Draw-Icon([Drawing.Graphics] $graphics, [double] $ringWidth, [double] $inset, [double] $diameter) {
     # A single color on transparency counts as a monochrome glyph: notifications invert it to match the theme
     # (the blue turned orange). The white face keeps the icon multi-colored, so Windows shows it as drawn
     $graphics.FillEllipse([Drawing.Brushes]::White, $inset, $inset, $diameter, $diameter)
@@ -27,34 +19,46 @@ function Draw-Ring([Drawing.Graphics] $graphics, [double] $ringWidth, [double] $
     $ring = New-Object Drawing.Pen $blue, $ringWidth
     $ring.StartCap = 'Round'
     $ring.EndCap = 'Round'
-    $graphics.DrawArc($ring, $inset, $inset, $diameter, $diameter, -90, 270)
+    # Single angles keep the float overload; with int literals PowerShell picks the int one and rounds the inset
+    $graphics.DrawArc($ring, $inset, $inset, $diameter, $diameter, [single] -90, [single] 270)
+
+    # Two chevrons offset like the rune, in a box of 0.46 of the icon height with the rune's aspect ratio
+    $size = $diameter + $ringWidth
+    $height = $size * 0.46
+    $width = $height * 0.927
+    $left = ($size - $width) / 2
+    $top = ($size - $height) / 2
+    $chevrons = @(
+        @(@(0.55, 0), @(0.34, 0), @(0, 0.36), @(0.34, 0.72), @(0.55, 0.72), @(0.21, 0.36)),
+        @(@(0.45, 1), @(0.66, 1), @(1, 0.64), @(0.66, 0.28), @(0.45, 0.28), @(0.79, 0.64))
+    )
+    $brush = New-Object Drawing.SolidBrush $blue
+    foreach ($chevron in $chevrons) {
+        $points = [Drawing.PointF[]] @($chevron | ForEach-Object { New-Object Drawing.PointF ($left + $_[0] * $width), ($top + $_[1] * $height) })
+        $graphics.FillPolygon($brush, $points)
+    }
 }
 
 function New-IconPng([int] $size) {
     $bitmap = New-Object Drawing.Bitmap $size, $size
-    $graphics = [Drawing.Graphics]::FromImage($bitmap)
-    $graphics.SmoothingMode = 'AntiAlias'
-    # Pixel x covers x to x + 1 as for SetPixel; by default GDI+ centers it on x, which moves the ring half a pixel
-    $graphics.PixelOffsetMode = 'Half'
     # Slimmer from 64 px up; smaller sizes need heavier strokes to stay readable, and the ring whole pixels,
     # or it blurs into the face
     $large = $size -ge 64
     $ringWidth = [Math]::Max([Math]::Round($size * $(if ($large) { 0.07 } else { 0.09 })), 2)
     $inset = $ringWidth / 2
-    # The pixel rune is an odd number of pixels wide and high, so the ring shrinks by one pixel to an odd box
-    # as well: both then share a pixel's center, and the rune sits exactly in the middle
-    $diameter = $size - $ringWidth - $(if ($small.ContainsKey($size)) { 1 } else { 0 })
+    $diameter = $size - $ringWidth
 
-    if ($small.ContainsKey($size)) {
-        # GDI+ anti-aliasing leans a few tenths of a pixel to the bottom right, which a 16 px ring shows as a
-        # heavier lower edge. Drawn 8 times larger and averaged down, each pixel gets its true coverage
+    if (-not $large) {
+        # GDI+ anti-aliasing leans a few tenths of a pixel to the bottom right, which rings below 64 px show
+        # as a heavier lower edge. Drawn 8 times larger and averaged down, each pixel gets its true coverage
         $factor = 8
         $fine = New-Object Drawing.Bitmap ($size * $factor), ($size * $factor)
         $fineGraphics = [Drawing.Graphics]::FromImage($fine)
         $fineGraphics.SmoothingMode = 'AntiAlias'
+        # Pixel x covers x to x + 1 as for SetPixel; by default GDI+ centers it on x, which moves the ring half a pixel
         $fineGraphics.PixelOffsetMode = 'Half'
         $fineGraphics.ScaleTransform($factor, $factor)
-        Draw-Ring $fineGraphics $ringWidth $inset $diameter
+        Draw-Icon $fineGraphics $ringWidth $inset $diameter
         $fineGraphics.Dispose()
         $count = $factor * $factor
         for ($y = 0; $y -lt $size; $y++) {
@@ -75,41 +79,16 @@ function New-IconPng([int] $size) {
         $fine.Dispose()
     }
     else {
-        Draw-Ring $graphics $ringWidth $inset $diameter
-    }
-
-    if ($small.ContainsKey($size)) {
-        # Centered on the ring's middle pixel
-        $rows = $small[$size]
-        $middle = ($size - 2) / 2
-        $left = $middle - ($rows[0].Length - 1) / 2
-        $top = $middle - ($rows.Count - 1) / 2
-        for ($y = 0; $y -lt $rows.Count; $y++) {
-            for ($x = 0; $x -lt $rows[$y].Length; $x++) {
-                if ($rows[$y][$x] -eq '#') { $bitmap.SetPixel($left + $x, $top + $y, $blue) }
-            }
-        }
-    }
-    else {
-        # Same centering as TrayIconRenderer: the outline's real bounds, not the font's padded box
-        $path = New-Object Drawing.Drawing2D.GraphicsPath
-        $path.AddString($glyph, (New-Object Drawing.FontFamily 'Segoe Fluent Icons'), 0, 28, [Drawing.PointF]::Empty, [Drawing.StringFormat]::GenericTypographic)
-        $bounds = $path.GetBounds()
-        $scale = $size * $(if ($large) { 0.54 } else { 0.56 }) / $bounds.Height
-        $fit = New-Object Drawing.Drawing2D.Matrix
-        $fit.Translate(($size - $bounds.Width * $scale) / 2, ($size - $bounds.Height * $scale) / 2)
-        $fit.Scale($scale, $scale)
-        $fit.Translate(-$bounds.X, -$bounds.Y)
-        $path.Transform($fit)
-        $graphics.FillPath((New-Object Drawing.SolidBrush $blue), $path)
-        $pen = New-Object Drawing.Pen $blue, ($size * $(if ($large) { 0.025 } else { 0.05 }))
-        $pen.LineJoin = 'Round'
-        $graphics.DrawPath($pen, $path)
+        $graphics = [Drawing.Graphics]::FromImage($bitmap)
+        $graphics.SmoothingMode = 'AntiAlias'
+        $graphics.PixelOffsetMode = 'Half'
+        Draw-Icon $graphics $ringWidth $inset $diameter
+        $graphics.Dispose()
     }
 
     $stream = New-Object IO.MemoryStream
     $bitmap.Save($stream, [Drawing.Imaging.ImageFormat]::Png)
-    $graphics.Dispose(); $bitmap.Dispose()
+    $bitmap.Dispose()
     return , $stream.ToArray()
 }
 

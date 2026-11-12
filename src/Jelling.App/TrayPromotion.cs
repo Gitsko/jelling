@@ -4,18 +4,26 @@ namespace Jelling.App;
 
 /// <summary>
 /// Moves a tray icon out of the overflow into the taskbar. Windows 11 has no API for this; Explorer keeps
-/// the choice per icon under NotifyIconSettings, the same value the taskbar settings page switches.
+/// the choice per icon under NotifyIconSettings, the same value the taskbar settings page switches. Only the
+/// unpackaged app can do this; in the Store package it does nothing.
 /// </summary>
 public static class TrayPromotion
 {
     private const string SettingsKey = @"Control Panel\NotifyIconSettings";
 
     /// <summary>
-    /// Promotes the icon unless the user already chose a place for it in the taskbar settings.
+    /// Promotes the icon unless the user already chose a place for it in the taskbar settings, or the app runs
+    /// as the Store package.
     /// </summary>
-    /// <returns>False while Explorer has not created the icon's entry yet.</returns>
+    /// <returns>False while Explorer has not created the icon's entry yet; true when there is nothing to retry.</returns>
     public static bool TryPromote(Guid iconId)
     {
+        // The Store package writes to a virtualized registry Explorer never reads; its users pin the icon themselves
+        if (PackageIdentity.IsPackaged)
+        {
+            return true;
+        }
+
         try
         {
             return Promote(iconId);

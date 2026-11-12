@@ -15,7 +15,8 @@ public static class DeviceIconId
 
     /// <summary>
     /// The notify icon GUID for one device. Windows remembers an icon's taskbar position by this
-    /// GUID, but also binds it to the exe path; reusing it from another path makes NIM_ADD fail.
+    /// GUID, but also binds it to the exe path; reusing it from another path makes NIM_ADD fail. The Store
+    /// package moves to a new folder with each version, so there a manual placement is lost on update.
     /// </summary>
     public static Guid For(string exePath, Guid deviceId)
     {

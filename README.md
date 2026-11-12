@@ -4,7 +4,7 @@
 
 Battery levels of your Bluetooth devices, one click away in the Windows 11 taskbar.
 
-Jelling Battery Monitor puts a Bluetooth icon in the notification area. Click it and a flyout lists every paired device with its type and charge, styled like the Windows 11 quick settings. Devices that are switched off or out of range stay in the list, dimmed, with their last known level. The devices you care about most can also sit right in the taskbar or in a small widget on the desktop.
+Jelling Battery Monitor puts its icon, a rune in a blue ring, in the notification area. Click it and a flyout lists every paired device with its type and charge, styled like the Windows 11 quick settings. Devices that are switched off or out of range stay in the list, dimmed, with their last known level. The devices you care about most can also sit right in the taskbar or in a small widget on the desktop.
 
 **[Download for Windows 11 (x64)](https://github.com/Gitsko/jelling/releases/latest/download/Jelling-Setup-win-x64.exe)** · [ARM64](https://github.com/Gitsko/jelling/releases/latest/download/Jelling-Setup-win-arm64.exe) · [all releases](https://github.com/Gitsko/jelling/releases)
 
@@ -33,7 +33,7 @@ The screenshots show the German interface; on an English Windows the app is in E
 
 ### Taskbar
 
-- The taskbar button next to a device ("Show in the taskbar") puts it in the taskbar while it is connected, left of the overflow arrow: the device symbol with its level to the right, black or white like the Windows icons. Hovering shows name and level, clicking opens the flyout, right-clicking opens the same menu as the Bluetooth icon
+- The taskbar button next to a device ("Show in the taskbar") puts it in the taskbar while it is connected, left of the overflow arrow: the device symbol with its level to the right, black or white like the Windows icons. Hovering shows name and level, clicking opens the flyout, right-clicking opens the same menu as the app's icon in the notification area
 - "Battery level in the taskbar" in the right-click menu: "Number" (the default), "Ring around the icon", a ring in Bluetooth blue that fills with the level, or "Symbol only". The choice applies to the taskbar and the notification area icons. The tooltip always names the level
 - With no room left of the overflow arrow, or with a vertical taskbar, the pinned devices get their own icons in the notification area instead. Jelling places them in the taskbar rather than behind the overflow arrow. If you hide them under Settings > Personalization > Taskbar > Other system tray icons, they stay hidden; Windows remembers this as long as Jelling stays in the same folder
 
@@ -54,7 +54,7 @@ The screenshots show the German interface; on an English Windows the app is in E
 
 ### Everything else
 
-- Start with Windows and Exit are in the right-click menu of the Bluetooth icon
+- Start with Windows and Exit are in the right-click menu of the app's icon in the notification area
 - Starting Jelling a second time opens the flyout of the running app instead of adding a second icon
 - Light, dark and high-contrast taskbars
 - English and German, following the Windows display language; other languages get English

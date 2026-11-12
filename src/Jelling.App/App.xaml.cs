@@ -9,7 +9,8 @@ namespace Jelling.App;
 
 public partial class App : Application
 {
-    private const string TrayGlyph = "\uE702";
+    // A full battery: the one-color stand-in for the app icon, without the Bluetooth logo the Store rejects
+    private const string TrayGlyph = "\uE83F";
 
     // At autostart Explorer may not take tray icons yet; without the icon the app cannot be reached
     private static readonly TimeSpan TrayIconRetryDelay = TimeSpan.FromSeconds(5);

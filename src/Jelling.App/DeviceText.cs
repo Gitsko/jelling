@@ -22,7 +22,7 @@ internal static class DeviceText
         DeviceKind.Keyboard => "\uE765",
         DeviceKind.GameController => "\uE7FC",
         DeviceKind.Speaker => "\uE7F5",
-        _ => "\uE702",
+        _ => "\uE772",
     };
 
     // Battery0-Battery9 are E850-E859, Battery10 (full) sits apart at E83F

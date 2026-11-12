@@ -6,8 +6,9 @@ namespace Jelling.App;
 
 /// <summary>
 /// One extra tray icon per pinned, connected device: its glyph above the battery level, or the glyph alone
-/// in the level's color, shown in the taskbar rather than in the overflow. A faint line right of them sets them
-/// apart from the system icons; the tray leaves no room between icons to draw it in.
+/// in the level's color, shown in the taskbar rather than in the overflow (the Store package leaves that to
+/// the user, see <see cref="TrayPromotion"/>). A faint line right of them sets them apart from the system
+/// icons; the tray leaves no room between icons to draw it in.
 /// </summary>
 /// <param name="onClick">Opens the flyout.</param>
 /// <param name="onRightClick">Opens the app's menu at the cursor.</param>
