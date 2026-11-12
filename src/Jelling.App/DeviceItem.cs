@@ -30,6 +30,8 @@ public sealed record DeviceItem(
     private static readonly string LowThresholdLabel = Strings.Get("LowThreshold");
     private static readonly string TaskbarLabelText = Strings.Get("ShowInTaskbar");
     private static readonly string WidgetLabelText = Strings.Get("ShowOnWidget");
+    private static readonly string BatteryLevelFormat = Strings.Get("BatteryLevelFormat");
+    private static readonly string BatteryUnknownText = Strings.Get("BatteryUnknown");
     private static readonly string ConnectText = Strings.Get("ConnectDevice");
     private static readonly string DisconnectText = Strings.Get("DisconnectDevice");
 
@@ -45,6 +47,13 @@ public sealed record DeviceItem(
 
     // The warning glyph replaces the battery glyph, so a low level does not rely on color alone
     public Visibility LevelVisibility => IsLow ? Visibility.Collapsed : Visibility.Visible;
+
+    // For the symbol and the number, which say nothing on their own about being the battery
+    public string BatteryToolTip => !HasLevel
+        ? BatteryUnknownText
+        : IsLow
+            ? $"{string.Format(BatteryLevelFormat, BatteryText)}, {DeviceText.LowLevelText}"
+            : string.Format(BatteryLevelFormat, BatteryText);
 
     public Visibility LowVisibility => IsLow ? Visibility.Visible : Visibility.Collapsed;
 

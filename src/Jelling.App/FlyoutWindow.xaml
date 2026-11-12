@@ -89,6 +89,7 @@
                             FontSize="16"
                             Glyph="{x:Bind BatteryGlyph}"
                             Opacity="{x:Bind Opacity}"
+                            ToolTipService.ToolTip="{x:Bind BatteryToolTip}"
                             Visibility="{x:Bind LevelVisibility}" />
                         <FontIcon
                             Grid.Column="2"
@@ -96,6 +97,7 @@
                             Foreground="{ThemeResource SystemFillColorCriticalBrush}"
                             Glyph="&#xE7BA;"
                             Opacity="{x:Bind Opacity}"
+                            ToolTipService.ToolTip="{x:Bind BatteryToolTip}"
                             Visibility="{x:Bind LowVisibility}" />
                         <TextBlock
                             Grid.Column="3"
@@ -104,7 +106,8 @@
                             VerticalAlignment="Center"
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                             Text="{x:Bind BatteryText}"
-                            TextAlignment="Right" />
+                            TextAlignment="Right"
+                            ToolTipService.ToolTip="{x:Bind BatteryToolTip}" />
                         <ComboBox
                             Grid.Column="4"
                             Width="88"
