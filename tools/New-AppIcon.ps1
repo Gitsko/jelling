@@ -1,11 +1,10 @@
-# Draws the app icon (a ring filled to 75 %, like a charge level) as
-# Assets/AppIcon.ico, AppIcon.png and the MSIX logos.
+# Draws the app icon (a ring filled to 75 %, like a charge level) as Assets/AppIcon.ico, AppIcon.png and the MSIX logos.
 # Run with Windows PowerShell after changing the look; the outputs are checked in.
 Add-Type -AssemblyName System.Drawing
 
 $assets = Join-Path $PSScriptRoot '..\src\Jelling.App\Assets'
 # Pantone 2925 C for the level, a tint of it for the empty quarter. No symbol inside: the Store rejects
-# imagery of products by others, which the Bluetooth logo is
+# imagery of trademarks of others, which the Bluetooth logo is
 $blue = [Drawing.Color]::FromArgb(0x00, 0x82, 0xFC)
 $trackColor = [Drawing.Color]::FromArgb(0xCC, 0xE6, 0xFE)
 
@@ -19,15 +18,12 @@ function Draw-Ring([Drawing.Graphics] $graphics, [double] $ringWidth, [double] $
     $ring = New-Object Drawing.Pen $blue, $ringWidth
     $ring.StartCap = 'Round'
     $ring.EndCap = 'Round'
-    $graphics.DrawArc($ring, $inset, $inset, $diameter, $diameter, -90, 270)
+    # Single angles keep the float overload; with int literals PowerShell picks the int one and rounds the inset
+    $graphics.DrawArc($ring, $inset, $inset, $diameter, $diameter, [single] -90, [single] 270)
 }
 
 function New-IconPng([int] $size) {
     $bitmap = New-Object Drawing.Bitmap $size, $size
-    $graphics = [Drawing.Graphics]::FromImage($bitmap)
-    $graphics.SmoothingMode = 'AntiAlias'
-    # Pixel x covers x to x + 1 as for SetPixel; by default GDI+ centers it on x, which moves the ring half a pixel
-    $graphics.PixelOffsetMode = 'Half'
     # Slimmer from 64 px up; smaller sizes need heavier strokes to stay readable, and the ring whole pixels,
     # or it blurs into the face
     $large = $size -ge 64
@@ -36,12 +32,13 @@ function New-IconPng([int] $size) {
     $diameter = $size - $ringWidth
 
     if (-not $large) {
-        # GDI+ anti-aliasing leans a few tenths of a pixel to the bottom right, which a 16 px ring shows as a
-        # heavier lower edge. Drawn 8 times larger and averaged down, each pixel gets its true coverage
+        # GDI+ anti-aliasing leans a few tenths of a pixel to the bottom right, which rings below 64 px show
+        # as a heavier lower edge. Drawn 8 times larger and averaged down, each pixel gets its true coverage
         $factor = 8
         $fine = New-Object Drawing.Bitmap ($size * $factor), ($size * $factor)
         $fineGraphics = [Drawing.Graphics]::FromImage($fine)
         $fineGraphics.SmoothingMode = 'AntiAlias'
+        # Pixel x covers x to x + 1 as for SetPixel; by default GDI+ centers it on x, which moves the ring half a pixel
         $fineGraphics.PixelOffsetMode = 'Half'
         $fineGraphics.ScaleTransform($factor, $factor)
         Draw-Ring $fineGraphics $ringWidth $inset $diameter
@@ -65,12 +62,16 @@ function New-IconPng([int] $size) {
         $fine.Dispose()
     }
     else {
+        $graphics = [Drawing.Graphics]::FromImage($bitmap)
+        $graphics.SmoothingMode = 'AntiAlias'
+        $graphics.PixelOffsetMode = 'Half'
         Draw-Ring $graphics $ringWidth $inset $diameter
+        $graphics.Dispose()
     }
 
     $stream = New-Object IO.MemoryStream
     $bitmap.Save($stream, [Drawing.Imaging.ImageFormat]::Png)
-    $graphics.Dispose(); $bitmap.Dispose()
+    $bitmap.Dispose()
     return , $stream.ToArray()
 }
 
