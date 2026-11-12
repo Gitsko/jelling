@@ -1,15 +1,16 @@
-# Draws the app icon (a ring filled to 75 %, like a charge level) as Assets/AppIcon.ico, AppIcon.png and the MSIX logos.
+# Draws the app icon (the rune jera in a ring filled to 75 %, like a charge level) as Assets/AppIcon.ico, AppIcon.png
+# and the MSIX logos.
 # Run with Windows PowerShell after changing the look; the outputs are checked in.
 Add-Type -AssemblyName System.Drawing
 
 $assets = Join-Path $PSScriptRoot '..\src\Jelling.App\Assets'
-# Pantone 2925 C for the level, a tint of it for the empty quarter. No symbol inside: the Store rejects
-# imagery of trademarks of others, which the Bluetooth logo is
+# Pantone 2925 C for the level, a tint of it for the empty quarter. The mark inside is not the Bluetooth logo, which
+# the Store rejects as imagery of trademarks of others, but jera, the J of the elder runes, for Jelling
 $blue = [Drawing.Color]::FromArgb(0x00, 0x82, 0xFC)
 $trackColor = [Drawing.Color]::FromArgb(0xCC, 0xE6, 0xFE)
 
-# Face, track and the blue three quarters. Inset and diameter are in pixels of the final icon
-function Draw-Ring([Drawing.Graphics] $graphics, [double] $ringWidth, [double] $inset, [double] $diameter) {
+# Face, track, the blue three quarters and the rune. Inset and diameter are in pixels of the final icon
+function Draw-Icon([Drawing.Graphics] $graphics, [double] $ringWidth, [double] $inset, [double] $diameter) {
     # A single color on transparency counts as a monochrome glyph: notifications invert it to match the theme
     # (the blue turned orange). The white face keeps the icon multi-colored, so Windows shows it as drawn
     $graphics.FillEllipse([Drawing.Brushes]::White, $inset, $inset, $diameter, $diameter)
@@ -20,6 +21,22 @@ function Draw-Ring([Drawing.Graphics] $graphics, [double] $ringWidth, [double] $
     $ring.EndCap = 'Round'
     # Single angles keep the float overload; with int literals PowerShell picks the int one and rounds the inset
     $graphics.DrawArc($ring, $inset, $inset, $diameter, $diameter, [single] -90, [single] 270)
+
+    # Two chevrons offset like the rune, in a box of 0.46 of the icon height with the rune's aspect ratio
+    $size = $diameter + $ringWidth
+    $height = $size * 0.46
+    $width = $height * 0.927
+    $left = ($size - $width) / 2
+    $top = ($size - $height) / 2
+    $chevrons = @(
+        @(@(0.55, 0), @(0.34, 0), @(0, 0.36), @(0.34, 0.72), @(0.55, 0.72), @(0.21, 0.36)),
+        @(@(0.45, 1), @(0.66, 1), @(1, 0.64), @(0.66, 0.28), @(0.45, 0.28), @(0.79, 0.64))
+    )
+    $brush = New-Object Drawing.SolidBrush $blue
+    foreach ($chevron in $chevrons) {
+        $points = [Drawing.PointF[]] @($chevron | ForEach-Object { New-Object Drawing.PointF ($left + $_[0] * $width), ($top + $_[1] * $height) })
+        $graphics.FillPolygon($brush, $points)
+    }
 }
 
 function New-IconPng([int] $size) {
@@ -41,7 +58,7 @@ function New-IconPng([int] $size) {
         # Pixel x covers x to x + 1 as for SetPixel; by default GDI+ centers it on x, which moves the ring half a pixel
         $fineGraphics.PixelOffsetMode = 'Half'
         $fineGraphics.ScaleTransform($factor, $factor)
-        Draw-Ring $fineGraphics $ringWidth $inset $diameter
+        Draw-Icon $fineGraphics $ringWidth $inset $diameter
         $fineGraphics.Dispose()
         $count = $factor * $factor
         for ($y = 0; $y -lt $size; $y++) {
@@ -65,7 +82,7 @@ function New-IconPng([int] $size) {
         $graphics = [Drawing.Graphics]::FromImage($bitmap)
         $graphics.SmoothingMode = 'AntiAlias'
         $graphics.PixelOffsetMode = 'Half'
-        Draw-Ring $graphics $ringWidth $inset $diameter
+        Draw-Icon $graphics $ringWidth $inset $diameter
         $graphics.Dispose()
     }
 
