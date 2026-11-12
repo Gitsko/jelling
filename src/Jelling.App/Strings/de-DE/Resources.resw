@@ -27,6 +27,8 @@
   <data name="LowLevel" xml:space="preserve"><value>niedrig</value></data>
   <data name="Connected" xml:space="preserve"><value>Verbunden</value></data>
   <data name="Disconnected" xml:space="preserve"><value>Getrennt</value></data>
+  <data name="ConnectDevice" xml:space="preserve"><value>Verbinden</value></data>
+  <data name="DisconnectDevice" xml:space="preserve"><value>Trennen</value></data>
   <data name="BatteryUnknown" xml:space="preserve"><value>Akkustand unbekannt</value></data>
   <data name="LowThresholdHeader.Text" xml:space="preserve"><value>Warnen bei</value></data>
   <data name="LowBatteryTitle" xml:space="preserve"><value>{0}: Akku schwach</value></data>

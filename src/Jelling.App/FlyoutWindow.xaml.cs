@@ -81,6 +81,9 @@ public sealed partial class FlyoutWindow : Window, IDisposable
     /// <summary>Raised with the device id and the state its "show on the widget" button now shows.</summary>
     public event EventHandler<(Guid DeviceId, bool Shown)>? WidgetToggled;
 
+    /// <summary>Raised with the device id and whether to connect it, the opposite of what its row shows.</summary>
+    public event EventHandler<(Guid DeviceId, bool Connect)>? ConnectClicked;
+
     /// <summary>Raised when a device's low threshold is picked from its list.</summary>
     public event EventHandler<(Guid DeviceId, int Threshold)>? LowThresholdChanged;
 
@@ -105,9 +108,10 @@ public sealed partial class FlyoutWindow : Window, IDisposable
         DeviceList.ItemsSource = devices;
 
         // The header stays above the threshold lists however many buttons follow them
-        var widgetButtons = devices.Any(d => d.ShowsWidgetToggle) ? ToggleWidth + ToggleSpacing : 0;
-        var buttons = ToggleWidth + widgetButtons;
-        _widthEpx = WidthEpx + widgetButtons;
+        var extraButtons = (devices.Any(d => d.ShowsWidgetToggle) ? ToggleWidth + ToggleSpacing : 0)
+            + (devices.Any(d => d.ShowsConnectSlot) ? ToggleWidth + ToggleSpacing : 0);
+        var buttons = ToggleWidth + extraButtons;
+        _widthEpx = WidthEpx + extraButtons;
         LowThresholdHeader.Margin = new Thickness(0, 0, buttons + RowColumnSpacing + RowRightPadding, 2);
         DeviceList.Visibility = devices.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         EmptyText.Visibility = devices.Count > 0 ? Visibility.Collapsed : Visibility.Visible;
@@ -236,6 +240,17 @@ public sealed partial class FlyoutWindow : Window, IDisposable
             var name = button.Name;
             toggled?.Invoke(this, (item.Id, shown(item)));
             FocusInRow<ToggleButton>(item.Id, name);
+        }
+    }
+
+    // The button keeps showing the device's state until Windows reports the new one and the row is rebuilt;
+    // a request the device refuses changes nothing, and nothing would set the button back
+    private void OnConnectClick(object sender, RoutedEventArgs args)
+    {
+        if (sender is ToggleButton { DataContext: DeviceItem item } button)
+        {
+            button.IsChecked = item.IsConnected;
+            ConnectClicked?.Invoke(this, (item.Id, !item.IsConnected));
         }
     }
 

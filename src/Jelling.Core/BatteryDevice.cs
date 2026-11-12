@@ -12,4 +12,7 @@ public enum DeviceKind
 
 /// <param name="Id">The device container id; stable while the device stays paired.</param>
 /// <param name="BatteryPercent">Null when the device reports no battery level.</param>
-public sealed record BatteryDevice(Guid Id, string Name, DeviceKind Kind, int? BatteryPercent, bool IsConnected);
+/// <param name="CanConnect">Whether Windows drives the device's audio over Bluetooth, the one kind of device the app can
+/// connect and disconnect.</param>
+public sealed record BatteryDevice(
+    Guid Id, string Name, DeviceKind Kind, int? BatteryPercent, bool IsConnected, bool CanConnect = false);

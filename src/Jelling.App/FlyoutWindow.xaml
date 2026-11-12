@@ -122,6 +122,23 @@
                             Grid.Column="5"
                             Orientation="Horizontal"
                             Spacing="4">
+                            <!-- Its place stays in every row while any device can connect, so the threshold lists
+                                 line up; not dimmed with a disconnected row, connecting it is what it is for -->
+                            <Grid Width="32" Visibility="{x:Bind ConnectSlotVisibility}">
+                                <ToggleButton
+                                    Width="32"
+                                    Height="32"
+                                    Padding="0"
+                                    AutomationProperties.Name="{x:Bind ConnectAutomationName}"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Click="OnConnectClick"
+                                    IsChecked="{x:Bind IsConnected}"
+                                    ToolTipService.ToolTip="{x:Bind ConnectLabel}"
+                                    Visibility="{x:Bind ConnectVisibility}">
+                                    <FontIcon FontSize="14" Glyph="&#xE95A;" />
+                                </ToggleButton>
+                            </Grid>
                             <ToggleButton
                                 x:Name="TaskbarToggle"
                                 Width="32"

@@ -67,6 +67,7 @@ public partial class App : Application
         _flyout.TaskbarToggled += (_, e) => ChangeShown(() => _settings.SetPinned(e.DeviceId, e.Shown));
         _flyout.WidgetToggled += (_, e) => ChangeShown(() => _settings.SetOnWidget(e.DeviceId, e.Shown));
         _flyout.LowThresholdChanged += (_, change) => SetLowThreshold(change.DeviceId, change.Threshold);
+        _flyout.ConnectClicked += (_, e) => _ = SetConnectedAsync(e.DeviceId, e.Connect);
         _flyout.RowsOutdated += (_, _) => ShowLastDevices();
         _deviceIcons = new DeviceTrayIcons(ToggleFlyout, ShowMenu);
         _taskbarElement = new TaskbarElement(ToggleFlyout, ShowMenu);
@@ -247,9 +248,15 @@ public partial class App : Application
             return;
         }
 
+        var showsConnectSlot = _devices.Any(d => d.CanConnect);
         _flyout?.SetDevices(_devices
             .Select(d => DeviceItem.From(
-                d, _settings.IsPinned(d.Id), _settings.ShowWidget, _settings.IsOnWidget(d.Id), _settings.LowThreshold(d.Id)))
+                d,
+                showsConnectSlot,
+                _settings.IsPinned(d.Id),
+                _settings.ShowWidget,
+                _settings.IsOnWidget(d.Id),
+                _settings.LowThreshold(d.Id)))
             .ToList());
         ShowInTaskbar();
     }
@@ -324,6 +331,19 @@ public partial class App : Application
             _lowBattery.Reset(deviceId);
             WarnLow();
         });
+    }
+
+    // The row follows once the watcher reports the device's new state
+    private static async Task SetConnectedAsync(Guid deviceId, bool connect)
+    {
+        try
+        {
+            await BluetoothAudio.SetConnectedAsync(deviceId, connect);
+        }
+        catch (Exception exception)
+        {
+            CrashLog.Write("Connect", exception);
+        }
     }
 
     // The setting still applies until the app ends; only saving it failed

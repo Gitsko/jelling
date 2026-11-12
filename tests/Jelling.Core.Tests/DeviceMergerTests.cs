@@ -141,4 +141,39 @@ public class DeviceMergerTests
 
         Assert.Equal(forward, backward);
     }
+
+    [Theory]
+    // A2DP and Hands-Free, the two audio filters a classic headset brings
+    [InlineData(@"BTHENUM\{0000110B-0000-1000-8000-00805F9B34FB}_VID&00010082_PID&0185\7&1a2b3c4d&0&001A7D000001_C00000000")]
+    [InlineData(@"BTHHFENUM\BthHFPAudio\8&2b104fd4&0&97")]
+    public void MarksDeviceConnectableWhenItHasBluetoothAudioFilter(string filterInstanceId)
+    {
+        PnpNode[] nodes = [new(@"BTHENUM\Dev_001A7D000001\7&1a2b3c4d&0&BluetoothDevice_001A7D000001", Epos, 60)];
+        DeviceContainer[] containers = [new(Epos, "EPOS ADAPT 260", ["Communication.Headset.Bluetooth"], IsConnected: false)];
+
+        var device = DeviceMerger.Merge(nodes, containers, [new AudioFilter(filterInstanceId, Epos)]).Single();
+
+        Assert.True(device.CanConnect);
+    }
+
+    [Fact]
+    public void LeavesDeviceWithoutBluetoothAudioFilterUnconnectable()
+    {
+        PnpNode[] nodes =
+        [
+            new(@"BTHENUM\Dev_001A7D000001\7&1a2b3c4d&0&BluetoothDevice_001A7D000001", Epos, 60),
+            new(@"BTHLE\Dev_c1d2e3f4a5b6\8&1a2b3c4d&0&c1d2e3f4a5b6", Mouse, 90),
+        ];
+        DeviceContainer[] containers =
+        [
+            new(Epos, "EPOS ADAPT 260", ["Communication.Headset.Bluetooth"], IsConnected: true),
+            new(Mouse, "M585/M590", ["Input.Mouse"], IsConnected: true),
+        ];
+        // An audio filter in the headset's container that Bluetooth does not drive, such as a USB dongle's
+        AudioFilter[] filters = [new(@"USB\VID_1395&PID_0300&MI_00\8&2c1d3e4f&0&0000", Epos)];
+
+        var devices = DeviceMerger.Merge(nodes, containers, filters);
+
+        Assert.All(devices, device => Assert.False(device.CanConnect));
+    }
 }
