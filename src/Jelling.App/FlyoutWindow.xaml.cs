@@ -106,16 +106,26 @@ public sealed partial class FlyoutWindow : Window, IDisposable
         }
 
         // A connect request is answered by a rebuild some time later, not by the click; the focus stays on its control.
-        // The first call comes from the constructor, before the window has a XamlRoot to ask
-        var focused = Root.XamlRoot is { } xamlRoot && FocusManager.GetFocusedElement(xamlRoot) is Control
-            { DataContext: DeviceItem focusedItem, Name: { Length: > 0 } focusedName }
-            ? (focusedItem.Id, focusedName)
-            : default((Guid DeviceId, string Name)?);
+        // Only while shown: the hidden window has no focus to keep. The first call comes from the constructor,
+        // before the window has a XamlRoot to ask
+        (Guid DeviceId, string? Name)? focused = AppWindow.IsVisible && Root.XamlRoot is { } xamlRoot
+            ? FocusManager.GetFocusedElement(xamlRoot) switch
+            {
+                // The arrow keys move the focus over whole rows
+                ListViewItem { Content: DeviceItem row } => (row.Id, null),
+                Control { DataContext: DeviceItem row, Name: { Length: > 0 } name } => (row.Id, name),
+                _ => null,
+            }
+            : null;
 
         DeviceList.ItemsSource = devices;
-        if (focused is { } target)
+        if (focused is { Name: { } controlName } inRow)
         {
-            FocusInRow<Control>(target.DeviceId, target.Name);
+            FocusInRow<Control>(inRow.DeviceId, controlName);
+        }
+        else if (focused is { } wholeRow)
+        {
+            RowContainer(wholeRow.DeviceId)?.Focus(FocusState.Programmatic);
         }
 
         // The header stays above the threshold lists however many buttons follow them
@@ -324,15 +334,26 @@ public sealed partial class FlyoutWindow : Window, IDisposable
     // The toggle buttons sit in panels of their own inside the row, and only their name tells them apart
     private void FocusInRow<T>(Guid deviceId, string? name = null) where T : Control
     {
-        var index = DeviceList.Items.Cast<DeviceItem>().ToList().FindIndex(d => d.Id == deviceId);
-        DeviceList.UpdateLayout();
-        if (DeviceList.ContainerFromIndex(index) is ListViewItem { ContentTemplateRoot: Panel row }
+        if (RowContainer(deviceId) is { ContentTemplateRoot: Panel row }
             && Descendants(row)
                 .OfType<T>()
                 .FirstOrDefault(control => name is null || control.Name == name) is { } control)
         {
             control.Focus(FocusState.Programmatic);
         }
+    }
+
+    // None for a device the rebuild no longer lists
+    private ListViewItem? RowContainer(Guid deviceId)
+    {
+        var index = DeviceList.Items.Cast<DeviceItem>().ToList().FindIndex(d => d.Id == deviceId);
+        if (index < 0)
+        {
+            return null;
+        }
+
+        DeviceList.UpdateLayout();
+        return DeviceList.ContainerFromIndex(index) as ListViewItem;
     }
 
     private static IEnumerable<UIElement> Descendants(Panel panel) =>
