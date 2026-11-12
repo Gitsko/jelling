@@ -27,7 +27,10 @@
   <data name="LowLevel" xml:space="preserve"><value>low</value></data>
   <data name="Connected" xml:space="preserve"><value>Connected</value></data>
   <data name="Disconnected" xml:space="preserve"><value>Disconnected</value></data>
+  <data name="ConnectDevice" xml:space="preserve"><value>Connect</value></data>
+  <data name="DisconnectDevice" xml:space="preserve"><value>Disconnect</value></data>
   <data name="BatteryUnknown" xml:space="preserve"><value>Battery level unknown</value></data>
+  <data name="BatteryLevelFormat" xml:space="preserve"><value>Battery level {0}</value></data>
   <data name="LowThresholdHeader.Text" xml:space="preserve"><value>Warn at</value></data>
   <data name="LowBatteryTitle" xml:space="preserve"><value>{0}: battery low</value></data>
   <data name="LowBatteryText" xml:space="preserve"><value>{0} left. Charge it soon.</value></data>

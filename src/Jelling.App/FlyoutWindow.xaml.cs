@@ -81,6 +81,9 @@ public sealed partial class FlyoutWindow : Window, IDisposable
     /// <summary>Raised with the device id and the state its "show on the widget" button now shows.</summary>
     public event EventHandler<(Guid DeviceId, bool Shown)>? WidgetToggled;
 
+    /// <summary>Raised with the device id and whether to connect it, the opposite of what its row shows.</summary>
+    public event EventHandler<(Guid DeviceId, bool Connect)>? ConnectClicked;
+
     /// <summary>Raised when a device's low threshold is picked from its list.</summary>
     public event EventHandler<(Guid DeviceId, int Threshold)>? LowThresholdChanged;
 
@@ -102,12 +105,34 @@ public sealed partial class FlyoutWindow : Window, IDisposable
             return;
         }
 
+        // A connect request is answered by a rebuild some time later, not by the click; the focus stays on its control.
+        // Only while shown: the hidden window has no focus to keep. The first call comes from the constructor,
+        // before the window has a XamlRoot to ask
+        (Guid DeviceId, string? Name)? focused = AppWindow.IsVisible && Root.XamlRoot is { } xamlRoot
+            ? FocusManager.GetFocusedElement(xamlRoot) switch
+            {
+                // The arrow keys move the focus over whole rows
+                ListViewItem { Content: DeviceItem row } => (row.Id, null),
+                Control { DataContext: DeviceItem row, Name: { Length: > 0 } name } => (row.Id, name),
+                _ => null,
+            }
+            : null;
+
         DeviceList.ItemsSource = devices;
+        if (focused is { Name: { } controlName } inRow)
+        {
+            FocusInRow<Control>(inRow.DeviceId, controlName);
+        }
+        else if (focused is { } wholeRow)
+        {
+            RowContainer(wholeRow.DeviceId)?.Focus(FocusState.Programmatic);
+        }
 
         // The header stays above the threshold lists however many buttons follow them
-        var widgetButtons = devices.Any(d => d.ShowsWidgetToggle) ? ToggleWidth + ToggleSpacing : 0;
-        var buttons = ToggleWidth + widgetButtons;
-        _widthEpx = WidthEpx + widgetButtons;
+        var extraButtons = (devices.Any(d => d.ShowsWidgetToggle) ? ToggleWidth + ToggleSpacing : 0)
+            + (devices.Any(d => d.ShowsConnectSlot) ? ToggleWidth + ToggleSpacing : 0);
+        var buttons = ToggleWidth + extraButtons;
+        _widthEpx = WidthEpx + extraButtons;
         LowThresholdHeader.Margin = new Thickness(0, 0, buttons + RowColumnSpacing + RowRightPadding, 2);
         DeviceList.Visibility = devices.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         EmptyText.Visibility = devices.Count > 0 ? Visibility.Collapsed : Visibility.Visible;
@@ -239,6 +264,17 @@ public sealed partial class FlyoutWindow : Window, IDisposable
         }
     }
 
+    // The button keeps showing the device's state until Windows reports the new one and the row is rebuilt;
+    // a request the device refuses changes nothing, and nothing would set the button back
+    private void OnConnectClick(object sender, RoutedEventArgs args)
+    {
+        if (sender is ToggleButton { DataContext: DeviceItem item } button)
+        {
+            button.IsChecked = item.IsConnected;
+            ConnectClicked?.Invoke(this, (item.Id, !item.IsConnected));
+        }
+    }
+
     private void OnLowThresholdChanged(object sender, SelectionChangedEventArgs args)
     {
         // The binding's first selection when the row is created removes nothing; that is not a choice
@@ -295,20 +331,33 @@ public sealed partial class FlyoutWindow : Window, IDisposable
                 && row.Children.OfType<ComboBox>().Any(list => list.IsDropDownOpen));
 
     // A rebuild replaced the rows and with them the focused control; keyboard users stay in place.
-    // The toggle buttons sit in a panel of their own inside the row, and only their name tells them apart
+    // The toggle buttons sit in panels of their own inside the row, and only their name tells them apart
     private void FocusInRow<T>(Guid deviceId, string? name = null) where T : Control
     {
-        var index = DeviceList.Items.Cast<DeviceItem>().ToList().FindIndex(d => d.Id == deviceId);
-        DeviceList.UpdateLayout();
-        if (DeviceList.ContainerFromIndex(index) is ListViewItem { ContentTemplateRoot: Panel row }
-            && row.Children
-                .SelectMany<UIElement, UIElement>(child => child is Panel inner ? inner.Children : [child])
+        if (RowContainer(deviceId) is { ContentTemplateRoot: Panel row }
+            && Descendants(row)
                 .OfType<T>()
                 .FirstOrDefault(control => name is null || control.Name == name) is { } control)
         {
             control.Focus(FocusState.Programmatic);
         }
     }
+
+    // None for a device the rebuild no longer lists
+    private ListViewItem? RowContainer(Guid deviceId)
+    {
+        var index = DeviceList.Items.Cast<DeviceItem>().ToList().FindIndex(d => d.Id == deviceId);
+        if (index < 0)
+        {
+            return null;
+        }
+
+        DeviceList.UpdateLayout();
+        return DeviceList.ContainerFromIndex(index) as ListViewItem;
+    }
+
+    private static IEnumerable<UIElement> Descendants(Panel panel) =>
+        panel.Children.SelectMany(child => child is Panel inner ? Descendants(inner) : [child]);
 
     private void OnRootKeyDown(object sender, KeyRoutedEventArgs args)
     {

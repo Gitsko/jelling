@@ -10,15 +10,25 @@ public sealed record PnpNode(string InstanceId, Guid ContainerId, int? BatteryPe
 /// <param name="CategoryIds">Ordered by priority, e.g. "Input.Keyboard", "Input.Mouse" for a keyboard.</param>
 public sealed record DeviceContainer(Guid Id, string Name, IReadOnlyList<string> CategoryIds, bool IsConnected);
 
+/// <summary>One audio filter interface (KSCATEGORY_AUDIO) and the device it belongs to.</summary>
+/// <param name="InstanceId">The instance id of the device node that provides the filter.</param>
+public sealed record AudioFilter(string InstanceId, Guid ContainerId);
+
 /// <summary>
 /// Joins Bluetooth device nodes with their containers. Classic devices keep the battery level on a
 /// service node (e.g. Hands-Free), BLE devices on the device node; both share the device's container.
 /// </summary>
 public static class DeviceMerger
 {
-    public static IReadOnlyList<BatteryDevice> Merge(IEnumerable<PnpNode> nodes, IEnumerable<DeviceContainer> containers)
+    /// <param name="audioFilters">Every audio filter; those Bluetooth drives make their device connectable.</param>
+    public static IReadOnlyList<BatteryDevice> Merge(
+        IEnumerable<PnpNode> nodes, IEnumerable<DeviceContainer> containers, IEnumerable<AudioFilter>? audioFilters = null)
     {
         var containersById = containers.ToDictionary(c => c.Id);
+        var connectable = (audioFilters ?? [])
+            .Where(f => IsBluetoothAudioFilter(f.InstanceId))
+            .Select(f => f.ContainerId)
+            .ToHashSet();
 
         return nodes
             .Where(IsBluetoothNode)
@@ -32,7 +42,9 @@ public static class DeviceMerger
                 var battery = g.OrderBy(n => n.InstanceId, StringComparer.OrdinalIgnoreCase)
                     .Select(n => n.BatteryPercent)
                     .FirstOrDefault(p => p is >= 0 and <= 100);
-                return new BatteryDevice(container.Id, container.Name, KindFromCategories(container.CategoryIds), battery, container.IsConnected);
+                return new BatteryDevice(
+                    container.Id, container.Name, KindFromCategories(container.CategoryIds), battery, container.IsConnected,
+                    connectable.Contains(container.Id));
             })
             .OrderByDescending(d => d.IsConnected)
             .ThenBy(d => d.Name, StringComparer.CurrentCultureIgnoreCase)
@@ -74,4 +86,12 @@ public static class DeviceMerger
     // The device node itself (BTHENUM\Dev_<mac>, BTHLE\Dev_<mac>), as opposed to its service nodes
     private static bool IsDeviceNode(PnpNode node) =>
         node.InstanceId.Contains(@"\Dev_", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Whether the Bluetooth audio driver provides the filter: A2DP and the other profiles under BTHENUM,
+    /// Hands-Free under BTHHFENUM. Only these take the connect and disconnect requests.
+    /// </summary>
+    public static bool IsBluetoothAudioFilter(string instanceId) =>
+        instanceId.StartsWith(@"BTHENUM\", StringComparison.OrdinalIgnoreCase)
+        || instanceId.StartsWith(@"BTHHFENUM\", StringComparison.OrdinalIgnoreCase);
 }

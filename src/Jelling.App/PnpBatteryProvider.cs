@@ -21,14 +21,29 @@ public sealed class PnpBatteryProvider : IBatteryProvider
             PresentDevicesAqs, [InstanceIdKey, ContainerIdKey, BatteryKey], DeviceInformationKind.Device).AsTask();
         var containersTask = DeviceInformation.FindAllAsync(
             "", [CategoryIdsKey, ConnectedKey], DeviceInformationKind.DeviceContainer).AsTask();
+        var filtersTask = GetFiltersOrNoneAsync();
 
-        // Both awaited together: should both fail, the second exception is observed too instead of
-        // surfacing later as an unobserved task
-        await Task.WhenAll(nodesTask, containersTask);
+        // All awaited together: should several fail, the other exceptions are observed too instead of
+        // surfacing later as unobserved tasks
+        await Task.WhenAll(nodesTask, containersTask, filtersTask);
         var nodes = nodesTask.Result.Select(ToNode).OfType<PnpNode>();
         var containers = containersTask.Result.Select(ToContainer).OfType<DeviceContainer>();
 
-        return DeviceMerger.Merge(nodes, containers);
+        return DeviceMerger.Merge(nodes, containers, filtersTask.Result);
+    }
+
+    // Only the connect buttons need the audio filters; without them the batteries still show
+    private static async Task<IReadOnlyList<AudioFilter>> GetFiltersOrNoneAsync()
+    {
+        try
+        {
+            return await BluetoothAudio.GetFiltersAsync();
+        }
+        catch (Exception exception)
+        {
+            CrashLog.Write("AudioFilters", exception);
+            return [];
+        }
     }
 
     private static PnpNode? ToNode(DeviceInformation device) =>

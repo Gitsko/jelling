@@ -55,7 +55,7 @@
             Grid.Row="1"
             IsItemClickEnabled="False"
             SelectionMode="None">
-            <!-- Sits above the threshold lists: right of it are the taskbar and widget buttons, the column
+            <!-- Sits above the threshold lists: right of it are the connect, taskbar and widget buttons, the column
                  spacing (12) and the item's right padding (12). Its right margin is set with the rows -->
             <ListView.Header>
                 <TextBlock
@@ -89,6 +89,7 @@
                             FontSize="16"
                             Glyph="{x:Bind BatteryGlyph}"
                             Opacity="{x:Bind Opacity}"
+                            ToolTipService.ToolTip="{x:Bind BatteryToolTip}"
                             Visibility="{x:Bind LevelVisibility}" />
                         <FontIcon
                             Grid.Column="2"
@@ -96,6 +97,7 @@
                             Foreground="{ThemeResource SystemFillColorCriticalBrush}"
                             Glyph="&#xE7BA;"
                             Opacity="{x:Bind Opacity}"
+                            ToolTipService.ToolTip="{x:Bind BatteryToolTip}"
                             Visibility="{x:Bind LowVisibility}" />
                         <TextBlock
                             Grid.Column="3"
@@ -104,8 +106,10 @@
                             VerticalAlignment="Center"
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                             Text="{x:Bind BatteryText}"
-                            TextAlignment="Right" />
+                            TextAlignment="Right"
+                            ToolTipService.ToolTip="{x:Bind BatteryToolTip}" />
                         <ComboBox
+                            x:Name="LowThresholdList"
                             Grid.Column="4"
                             Width="88"
                             MinWidth="0"
@@ -122,6 +126,24 @@
                             Grid.Column="5"
                             Orientation="Horizontal"
                             Spacing="4">
+                            <!-- Its place stays in every row while any device can connect, so the threshold lists
+                                 line up; not dimmed with a disconnected row, connecting it is what it is for -->
+                            <Grid Width="32" Visibility="{x:Bind ConnectSlotVisibility}">
+                                <ToggleButton
+                                    x:Name="ConnectToggle"
+                                    Width="32"
+                                    Height="32"
+                                    Padding="0"
+                                    AutomationProperties.Name="{x:Bind ConnectAutomationName}"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Click="OnConnectClick"
+                                    IsChecked="{x:Bind IsConnected}"
+                                    ToolTipService.ToolTip="{x:Bind ConnectToolTip}"
+                                    Visibility="{x:Bind ConnectVisibility}">
+                                    <FontIcon FontSize="14" Glyph="&#xE95A;" />
+                                </ToggleButton>
+                            </Grid>
                             <ToggleButton
                                 x:Name="TaskbarToggle"
                                 Width="32"
