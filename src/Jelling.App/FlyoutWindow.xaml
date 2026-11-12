@@ -55,7 +55,7 @@
             Grid.Row="1"
             IsItemClickEnabled="False"
             SelectionMode="None">
-            <!-- Sits above the threshold lists: right of it are the taskbar and widget buttons, the column
+            <!-- Sits above the threshold lists: right of it are the connect, taskbar and widget buttons, the column
                  spacing (12) and the item's right padding (12). Its right margin is set with the rows -->
             <ListView.Header>
                 <TextBlock
@@ -109,6 +109,7 @@
                             TextAlignment="Right"
                             ToolTipService.ToolTip="{x:Bind BatteryToolTip}" />
                         <ComboBox
+                            x:Name="LowThresholdList"
                             Grid.Column="4"
                             Width="88"
                             MinWidth="0"
@@ -129,6 +130,7 @@
                                  line up; not dimmed with a disconnected row, connecting it is what it is for -->
                             <Grid Width="32" Visibility="{x:Bind ConnectSlotVisibility}">
                                 <ToggleButton
+                                    x:Name="ConnectToggle"
                                     Width="32"
                                     Height="32"
                                     Padding="0"
@@ -137,7 +139,7 @@
                                     BorderThickness="0"
                                     Click="OnConnectClick"
                                     IsChecked="{x:Bind IsConnected}"
-                                    ToolTipService.ToolTip="{x:Bind ConnectLabel}"
+                                    ToolTipService.ToolTip="{x:Bind ConnectToolTip}"
                                     Visibility="{x:Bind ConnectVisibility}">
                                     <FontIcon FontSize="14" Glyph="&#xE95A;" />
                                 </ToggleButton>

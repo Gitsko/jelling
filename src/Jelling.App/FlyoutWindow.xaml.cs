@@ -105,7 +105,18 @@ public sealed partial class FlyoutWindow : Window, IDisposable
             return;
         }
 
+        // A connect request is answered by a rebuild some time later, not by the click; the focus stays on its control.
+        // The first call comes from the constructor, before the window has a XamlRoot to ask
+        var focused = Root.XamlRoot is { } xamlRoot && FocusManager.GetFocusedElement(xamlRoot) is Control
+            { DataContext: DeviceItem focusedItem, Name: { Length: > 0 } focusedName }
+            ? (focusedItem.Id, focusedName)
+            : default((Guid DeviceId, string Name)?);
+
         DeviceList.ItemsSource = devices;
+        if (focused is { } target)
+        {
+            FocusInRow<Control>(target.DeviceId, target.Name);
+        }
 
         // The header stays above the threshold lists however many buttons follow them
         var extraButtons = (devices.Any(d => d.ShowsWidgetToggle) ? ToggleWidth + ToggleSpacing : 0)
@@ -310,20 +321,22 @@ public sealed partial class FlyoutWindow : Window, IDisposable
                 && row.Children.OfType<ComboBox>().Any(list => list.IsDropDownOpen));
 
     // A rebuild replaced the rows and with them the focused control; keyboard users stay in place.
-    // The toggle buttons sit in a panel of their own inside the row, and only their name tells them apart
+    // The toggle buttons sit in panels of their own inside the row, and only their name tells them apart
     private void FocusInRow<T>(Guid deviceId, string? name = null) where T : Control
     {
         var index = DeviceList.Items.Cast<DeviceItem>().ToList().FindIndex(d => d.Id == deviceId);
         DeviceList.UpdateLayout();
         if (DeviceList.ContainerFromIndex(index) is ListViewItem { ContentTemplateRoot: Panel row }
-            && row.Children
-                .SelectMany<UIElement, UIElement>(child => child is Panel inner ? inner.Children : [child])
+            && Descendants(row)
                 .OfType<T>()
                 .FirstOrDefault(control => name is null || control.Name == name) is { } control)
         {
             control.Focus(FocusState.Programmatic);
         }
     }
+
+    private static IEnumerable<UIElement> Descendants(Panel panel) =>
+        panel.Children.SelectMany(child => child is Panel inner ? Descendants(inner) : [child]);
 
     private void OnRootKeyDown(object sender, KeyRoutedEventArgs args)
     {

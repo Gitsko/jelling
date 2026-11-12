@@ -333,7 +333,8 @@ public partial class App : Application
         });
     }
 
-    // The row follows once the watcher reports the device's new state
+    // The row follows once the watcher reports the device's new state; a refused request leaves it as it is,
+    // so the log is the only place that tells why nothing happened
     private static async Task SetConnectedAsync(Guid deviceId, bool connect)
     {
         try

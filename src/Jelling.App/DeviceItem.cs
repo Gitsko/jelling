@@ -32,6 +32,7 @@ public sealed record DeviceItem(
     private static readonly string WidgetLabelText = Strings.Get("ShowOnWidget");
     private static readonly string BatteryLevelFormat = Strings.Get("BatteryLevelFormat");
     private static readonly string BatteryUnknownText = Strings.Get("BatteryUnknown");
+    private static readonly string ConnectedText = Strings.Get("Connected");
     private static readonly string ConnectText = Strings.Get("ConnectDevice");
     private static readonly string DisconnectText = Strings.Get("DisconnectDevice");
 
@@ -71,9 +72,10 @@ public sealed record DeviceItem(
 
     public Visibility ConnectSlotVisibility => ShowsConnectSlot ? Visibility.Visible : Visibility.Collapsed;
 
-    public string ConnectLabel => IsConnected ? DisconnectText : ConnectText;
+    // The tooltip says what a click does; Narrator gets a constant label like the other toggles and adds on or off
+    public string ConnectToolTip => IsConnected ? DisconnectText : ConnectText;
 
-    public string ConnectAutomationName => $"{Name}: {ConnectLabel}";
+    public string ConnectAutomationName => $"{Name}: {ConnectedText}";
 
     public Visibility WidgetToggleVisibility => ShowsWidgetToggle ? Visibility.Visible : Visibility.Collapsed;
 
