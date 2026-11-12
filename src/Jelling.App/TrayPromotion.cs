@@ -16,6 +16,12 @@ public static class TrayPromotion
     /// <returns>False while Explorer has not created the icon's entry yet.</returns>
     public static bool TryPromote(Guid iconId)
     {
+        // The Store package writes to a virtualized registry Explorer never reads; its users pin the icon themselves
+        if (PackageIdentity.IsPackaged)
+        {
+            return true;
+        }
+
         try
         {
             return Promote(iconId);
