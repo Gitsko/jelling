@@ -1,21 +1,13 @@
-# Draws the app icon (Bluetooth glyph in a ring filled to 75 %, like a charge level) as
+# Draws the app icon (a ring filled to 75 %, like a charge level) as
 # Assets/AppIcon.ico, AppIcon.png and the MSIX logos.
 # Run with Windows PowerShell after changing the look; the outputs are checked in.
 Add-Type -AssemblyName System.Drawing
 
 $assets = Join-Path $PSScriptRoot '..\src\Jelling.App\Assets'
-# Bluetooth Blue (Pantone 2925 C) for glyph and level, a tint of it for the empty quarter
+# Pantone 2925 C for the level, a tint of it for the empty quarter. No symbol inside: the Store rejects
+# imagery of products by others, which the Bluetooth logo is
 $blue = [Drawing.Color]::FromArgb(0x00, 0x82, 0xFC)
 $trackColor = [Drawing.Color]::FromArgb(0xCC, 0xE6, 0xFE)
-$glyph = [string][char]0xE702
-# The rune for the small sizes, set pixel by pixel: any scaled or anti-aliased stroke turns to mush there.
-# One-pixel lines, 45 degrees where there is room; 16 px has room only for a shorter one with a straight crossbar
-$small = @{
-    16 = '..#..', '..##.', '#.#.#', '.###.', '#.#.#', '..##.', '..#..'
-    20 = '..#..', '..##.', '#.#.#', '.###.', '..#..', '.###.', '#.#.#', '..##.', '..#..'
-    24 = '...#...', '...##..', '...#.#.', '#..#..#', '.#.#.#.', '..###..', '...#...', '..###..', '.#.#.#.', '#..#..#',
-         '...#.#.', '...##..', '...#...'
-}
 
 # Face, track and the blue three quarters. Inset and diameter are in pixels of the final icon
 function Draw-Ring([Drawing.Graphics] $graphics, [double] $ringWidth, [double] $inset, [double] $diameter) {
@@ -41,11 +33,9 @@ function New-IconPng([int] $size) {
     $large = $size -ge 64
     $ringWidth = [Math]::Max([Math]::Round($size * $(if ($large) { 0.07 } else { 0.09 })), 2)
     $inset = $ringWidth / 2
-    # The pixel rune is an odd number of pixels wide and high, so the ring shrinks by one pixel to an odd box
-    # as well: both then share a pixel's center, and the rune sits exactly in the middle
-    $diameter = $size - $ringWidth - $(if ($small.ContainsKey($size)) { 1 } else { 0 })
+    $diameter = $size - $ringWidth
 
-    if ($small.ContainsKey($size)) {
+    if (-not $large) {
         # GDI+ anti-aliasing leans a few tenths of a pixel to the bottom right, which a 16 px ring shows as a
         # heavier lower edge. Drawn 8 times larger and averaged down, each pixel gets its true coverage
         $factor = 8
@@ -76,35 +66,6 @@ function New-IconPng([int] $size) {
     }
     else {
         Draw-Ring $graphics $ringWidth $inset $diameter
-    }
-
-    if ($small.ContainsKey($size)) {
-        # Centered on the ring's middle pixel
-        $rows = $small[$size]
-        $middle = ($size - 2) / 2
-        $left = $middle - ($rows[0].Length - 1) / 2
-        $top = $middle - ($rows.Count - 1) / 2
-        for ($y = 0; $y -lt $rows.Count; $y++) {
-            for ($x = 0; $x -lt $rows[$y].Length; $x++) {
-                if ($rows[$y][$x] -eq '#') { $bitmap.SetPixel($left + $x, $top + $y, $blue) }
-            }
-        }
-    }
-    else {
-        # Same centering as TrayIconRenderer: the outline's real bounds, not the font's padded box
-        $path = New-Object Drawing.Drawing2D.GraphicsPath
-        $path.AddString($glyph, (New-Object Drawing.FontFamily 'Segoe Fluent Icons'), 0, 28, [Drawing.PointF]::Empty, [Drawing.StringFormat]::GenericTypographic)
-        $bounds = $path.GetBounds()
-        $scale = $size * $(if ($large) { 0.54 } else { 0.56 }) / $bounds.Height
-        $fit = New-Object Drawing.Drawing2D.Matrix
-        $fit.Translate(($size - $bounds.Width * $scale) / 2, ($size - $bounds.Height * $scale) / 2)
-        $fit.Scale($scale, $scale)
-        $fit.Translate(-$bounds.X, -$bounds.Y)
-        $path.Transform($fit)
-        $graphics.FillPath((New-Object Drawing.SolidBrush $blue), $path)
-        $pen = New-Object Drawing.Pen $blue, ($size * $(if ($large) { 0.025 } else { 0.05 }))
-        $pen.LineJoin = 'Round'
-        $graphics.DrawPath($pen, $path)
     }
 
     $stream = New-Object IO.MemoryStream
